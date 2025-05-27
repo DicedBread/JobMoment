@@ -2,3 +2,4 @@ service-account.json
 *.pdf
 .vscode
 target
+applogs
