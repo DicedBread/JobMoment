@@ -1,12 +1,13 @@
 package diced.bread;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
@@ -39,8 +40,11 @@ public class DriveContainer {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             driveService.files().export(documentId, "application/pdf").executeMediaAndDownloadTo(outputStream);
-            FileOutputStream fos = new FileOutputStream(outputPath + ".pdf");
-            outputStream.writeTo(fos);
+            String fileLoc = outputPath + ".pdf";
+            PDDocument pf = Loader.loadPDF(outputStream.toByteArray());
+            pf.removePage(0);
+            pf.save(fileLoc);
+            pf.close();
             logger.info("document " + documentId + " saved to " + outputPath);
         } catch (IOException e) {
             logger.error("failed to download " + documentId + " error " + e);
