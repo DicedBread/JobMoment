@@ -20,6 +20,8 @@ import com.google.api.services.docs.v1.model.Request;
 import com.google.api.services.docs.v1.model.StructuralElement;
 import com.google.api.services.docs.v1.model.TextStyle;
 
+import diced.bread.util.ConditionalParser;
+
 public class DocContainer {
     Docs docService;
 
@@ -76,7 +78,13 @@ public class DocContainer {
         Color c = style.getBackgroundColor().getColor();
 
         if (c.toString().equals(BLUE)) {
-            // conditional
+            if(!ConditionalParser.isValid(content)) return;
+            ConditionalParser val = new ConditionalParser(content);
+            String newString = val.getResult();
+            List<Request> res = replace(start, end, newString, content);
+            Collections.reverse(res);
+            test.addAll(res);
+
         } else {
             String newString = "test";
             List<Request> res = replace(start, end, newString, content);
@@ -89,7 +97,6 @@ public class DocContainer {
         // System.out.println(content);
         // System.out.println("color: " + c);
     }
-
 
     /***
      * returns list of requests to replace text at index in order they should be sent
@@ -105,18 +112,20 @@ public class DocContainer {
         boolean hasEndLine = content.charAt(content.length() - 1) == '\n';
         int endIndex = (hasEndLine) ? end - 1 : end;
 
-        out.add(new Request()
-                .setInsertText(
-                        new InsertTextRequest()
-                                .setText(newText)
-                                .setLocation(new Location().setIndex(endIndex))));
-
-        DeleteContentRangeRequest res = new DeleteContentRangeRequest()
-                .setRange(
-                        new Range()
-                                .setStartIndex(start)
-                                .setEndIndex(endIndex));
-        out.add(new Request().setDeleteContentRange(res));
+        out.add(new Request().setInsertText(
+            new InsertTextRequest()
+                .setText(newText)
+                .setLocation(new Location().setIndex(endIndex))
+            )
+        );        
+        out.add(new Request().setDeleteContentRange(
+            new DeleteContentRangeRequest()
+            .setRange(
+                new Range()
+                    .setStartIndex(start)
+                    .setEndIndex(endIndex))
+            )
+        );
 
         return out;
     }
