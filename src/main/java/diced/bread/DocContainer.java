@@ -57,7 +57,7 @@ public class DocContainer {
 
             BatchUpdateDocumentRequest req = new BatchUpdateDocumentRequest().setRequests(l);
             BatchUpdateDocumentResponse res = docService.documents().batchUpdate(doc.getDocumentId(), req).execute();
-            
+
         } catch (IOException e) {
             System.out.println(e);
         }
@@ -78,24 +78,10 @@ public class DocContainer {
         if (c.toString().equals(BLUE)) {
             // conditional
         } else {
-            String resString = "test";
-
-
-            boolean hasEndLine = content.charAt(content.length() - 1) == '\n';
-            int endIndex = (hasEndLine) ? end - 1 : end;
-            DeleteContentRangeRequest res = new DeleteContentRangeRequest()
-                    .setRange(
-                            new Range()
-                                    .setStartIndex(start)
-                                    .setEndIndex(endIndex));
-            test.add(new Request().setDeleteContentRange(res));
-
-            test.add(new Request()
-                    .setInsertText(
-                            new InsertTextRequest()
-                                    .setText(resString)
-                                    .setLocation(new Location().setIndex(endIndex))));
-
+            String newString = "test";
+            List<Request> res = replace(start, end, newString, content);
+            Collections.reverse(res);
+            test.addAll(res);
         }
 
         // System.out.println("start: " + start + " end: " + end + " length: " +
@@ -104,8 +90,35 @@ public class DocContainer {
         // System.out.println("color: " + c);
     }
 
-    private void replace(int startIndex, int endIndex, String newText, String currentContent) {
 
+    /***
+     * returns list of requests to replace text at index in order they should be sent
+     * @param start
+     * @param end
+     * @param newText
+     * @param content
+     * @return
+     */
+    private List<Request> replace(int start, int end, String newText, String content) {
+        ArrayList<Request> out = new ArrayList<>();
+
+        boolean hasEndLine = content.charAt(content.length() - 1) == '\n';
+        int endIndex = (hasEndLine) ? end - 1 : end;
+
+        out.add(new Request()
+                .setInsertText(
+                        new InsertTextRequest()
+                                .setText(newText)
+                                .setLocation(new Location().setIndex(endIndex))));
+
+        DeleteContentRangeRequest res = new DeleteContentRangeRequest()
+                .setRange(
+                        new Range()
+                                .setStartIndex(start)
+                                .setEndIndex(endIndex));
+        out.add(new Request().setDeleteContentRange(res));
+
+        return out;
     }
 
 }
