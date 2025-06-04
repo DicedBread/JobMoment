@@ -1,4 +1,4 @@
-package diced.bread.data.seekdata;
+package diced.bread.client.seekdata;
 
 public class LocalisedDescriptions {
     public En en;

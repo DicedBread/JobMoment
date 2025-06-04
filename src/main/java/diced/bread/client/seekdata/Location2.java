@@ -1,4 +1,4 @@
-package diced.bread.data.seekdata;
+package diced.bread.client.seekdata;
 
 public class Location2 {
     public String description;

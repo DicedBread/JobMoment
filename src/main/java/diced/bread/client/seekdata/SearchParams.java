@@ -1,4 +1,4 @@
-package diced.bread.data.seekdata;
+package diced.bread.client.seekdata;
 
 public class SearchParams {
     public String where;

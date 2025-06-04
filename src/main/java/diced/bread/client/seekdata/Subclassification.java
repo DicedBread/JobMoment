@@ -1,4 +1,4 @@
-package diced.bread.data.seekdata;
+package diced.bread.client.seekdata;
 
 public class Subclassification {
     public String id;
