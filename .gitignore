@@ -3,3 +3,4 @@ service-account.json
 .vscode
 target
 applogs
+out.json
