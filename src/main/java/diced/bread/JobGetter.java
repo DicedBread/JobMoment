@@ -3,7 +3,10 @@ package diced.bread;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +23,9 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
+import diced.bread.client.SeekClient;
+import diced.bread.model.JobInfo;
+
 public class JobGetter {
     private static final Logger logger = LogManager.getLogger(JobGetter.class);
 
@@ -33,12 +39,46 @@ public class JobGetter {
 
     public void run() {
         logger.info("running");
-        
-        // doc.findThing(DOCUMENT_ID);
-        String newDoc = drive.createCopy(DOCUMENT_ID, "test out");
-        doc.findThing(newDoc);    
-        
-        doc.findThing(newDoc);
+
+        // String newDoc = drive.createCopy(DOCUMENT_ID, "test out");
+
+        // JobInfo g = new JobInfo("asd", "name", "pos title", false);
+
+        // doc.findAndReplace(newDoc, g);
+
+        SeekClient seek = new SeekClient();
+        seek.GetStuff();
+        Map<String, JobInfo> listing = seek.getJobInfo();
+
+        List<Thread> process = new ArrayList<>();
+
+        listing.forEach((k, v) -> {
+            Thread thread = new Thread() {
+                @Override
+                public void run() {
+                    super.run();
+                    String link = k;
+                    JobInfo job = v;
+
+                    String newDoc = drive.createCopy(DOCUMENT_ID, v.getCompanyName());
+                    doc.findAndReplace(newDoc, job);
+
+                }
+            };
+            process.add(thread);
+            thread.start();
+        });
+
+        process.forEach(e -> {
+            try {
+                e.join();
+            } catch (InterruptedException ex) {
+                logger.error(ex);
+            }
+        });
+
+
+        // drive.download(newDoc, "test");
 
         logger.info("end");
     }

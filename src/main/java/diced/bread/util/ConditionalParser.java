@@ -26,7 +26,6 @@ public class ConditionalParser {
     public static boolean isValid(String insert){
         Pattern pattern = Pattern.compile("\\[\\s*(?:([^\\[\\]?/:]+)\\?)?([^\\[\\]?/:]+):([^\\[\\]?/:]+)\\s*\\]");
         Matcher matcher = pattern.matcher(insert.strip().trim());
-        System.out.println(matcher.matches());
         return matcher.matches();
     }
 

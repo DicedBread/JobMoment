@@ -20,7 +20,7 @@ import diced.bread.client.seekdata.Root;
 import diced.bread.model.JobInfo;
 
 public class SeekClient {
-    private final String LINK = "https://www.seek.co.nz/api/jobsearch/v5/search?where=All+Auckland&page=1&classification=6281&workarrangement=2,1,3&pageSize=2";
+    private final String LINK = "https://www.seek.co.nz/api/jobsearch/v5/search?where=All+Auckland&page=1&classification=6281&workarrangement=2,1,3&pageSize=10";
 
     private Map<String, Datum> things = new HashMap<String, Datum>();
 
@@ -35,7 +35,6 @@ public class SeekClient {
             HttpResponse<String> res = client.send(req, BodyHandlers.ofString());
 
             String s = res.body();
-            System.out.println();
             JsonObject o = JsonParser.parseString(s).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             String prettyJsonString = gson.toJson(o);
@@ -43,7 +42,6 @@ public class SeekClient {
 
             Root r = gson.fromJson(o, Root.class);
             r.data.forEach(e -> {
-                System.out.println(e.advertiser.description);
                 things.put(e.id, e);
             });
 
@@ -69,7 +67,9 @@ public class SeekClient {
             // allText.concat(positionTitle + " ");
             // allText.concat(companyName + " ");
             
-            if(v.classifications.get(0).subclassification.id.equals("6290")){
+            String subclass = v.classifications.get(0).subclassification.id;
+
+            if(subclass.equals("6290") || subclass.equals("6287")){
                 isSoftware = true;
             }
             JobInfo ji = new JobInfo(listingUrl, companyName, positionTitle, isSoftware);            
