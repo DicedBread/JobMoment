@@ -1,7 +1,9 @@
 package diced.bread;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +27,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 
 import diced.bread.client.SeekClient;
 import diced.bread.model.JobInfo;
+import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
     private static final Logger logger = LogManager.getLogger(JobGetter.class);
@@ -44,30 +47,24 @@ public class JobGetter {
 
         // JobInfo g = new JobInfo("asd", "name", "pos title", false);
 
+        
+
         // doc.findAndReplace(newDoc, g);
 
         SeekClient seek = new SeekClient();
-        seek.GetStuff();
-        Map<String, JobInfo> listing = seek.getJobInfo();
+        seek.GetData(1, 2);
+        Map<URI, JobInfo> listing = seek.getJobInfo();
 
-        List<Thread> process = new ArrayList<>();
+        List<CVWriterProcess> process = new ArrayList<>();
 
         listing.forEach((k, v) -> {
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
-                    super.run();
-                    String link = k;
-                    JobInfo job = v;
-
-                    String newDoc = drive.createCopy(DOCUMENT_ID, v.getCompanyName());
-                    doc.findAndReplace(newDoc, job);
-
-                }
-            };
+            CVWriterProcess thread = new CVWriterProcess(k, v, drive, doc);
             process.add(thread);
             thread.start();
         });
+
+        
+        new File("out/cv").mkdirs();
 
         process.forEach(e -> {
             try {
@@ -77,6 +74,9 @@ public class JobGetter {
             }
         });
 
+        process.forEach(e -> {
+            drive.download(DOCUMENT_ID, "out/cv/"+e.getJobInfo().getCompanyName());
+        });
 
         // drive.download(newDoc, "test");
 
