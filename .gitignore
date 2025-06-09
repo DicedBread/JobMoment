@@ -4,3 +4,6 @@ service-account.json
 target
 applogs
 out.json
+
+.obsidian
+out

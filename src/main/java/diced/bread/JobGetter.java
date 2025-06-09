@@ -1,6 +1,5 @@
 package diced.bread;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -27,6 +26,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 
 import diced.bread.client.SeekClient;
 import diced.bread.model.JobInfo;
+import diced.bread.persist.JobApply;
+import diced.bread.persist.JobOutWriter;
 import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
@@ -64,19 +65,18 @@ public class JobGetter {
         });
 
         
-        new File("out/cv").mkdirs();
+        JobOutWriter out = new JobOutWriter();
 
         process.forEach(e -> {
             try {
                 e.join();
+                drive.download(e.getDocId(), out.getPdfDir() + e.getJobInfo().getCompanyName().replaceAll("\\W+", ""));
+                out.getWriter().append(new JobApply(e.getJobInfo().getListingUrl(), e.getJobInfo().getCompanyName(), false));
             } catch (InterruptedException ex) {
                 logger.error(ex);
             }
         });
 
-        process.forEach(e -> {
-            drive.download(DOCUMENT_ID, "out/cv/"+e.getJobInfo().getCompanyName());
-        });
 
         // drive.download(newDoc, "test");
 

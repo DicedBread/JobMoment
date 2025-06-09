@@ -13,6 +13,7 @@ public class CVWriterProcess extends Thread {
     private JobInfo jobInfo;
     private DocContainer docService;
     private DriveContainer driveService;
+    private String docId;
 
     public CVWriterProcess(URI uri, JobInfo jobInfo, DriveContainer driveService, DocContainer docService) {
         this.uri = uri;
@@ -24,11 +25,15 @@ public class CVWriterProcess extends Thread {
     @Override
     public void run() {
         super.run();
-        String newDoc = driveService.createCopy(BASE_DOCUMENT_ID, jobInfo.getCompanyName());
-        docService.findAndReplace(newDoc, jobInfo);
+        docId = driveService.createCopy(BASE_DOCUMENT_ID, jobInfo.getCompanyName());
+        docService.findAndReplace(docId, jobInfo);
     }
 
     public JobInfo getJobInfo() {
         return jobInfo;
+    }
+
+    public String getDocId() {
+        return docId;
     }
 }
