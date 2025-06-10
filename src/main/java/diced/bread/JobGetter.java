@@ -44,18 +44,12 @@ public class JobGetter {
     public void run() {
         logger.info("running");
 
-        // String newDoc = drive.createCopy(DOCUMENT_ID, "test out");
-
-        // JobInfo g = new JobInfo("asd", "name", "pos title", false);
-
-        
-
-        // doc.findAndReplace(newDoc, g);
 
         SeekClient seek = new SeekClient();
-        seek.GetData(1, 2);
+        seek.GetData(2, 40);
         Map<URI, JobInfo> listing = seek.getJobInfo();
-
+        
+        
         List<CVWriterProcess> process = new ArrayList<>();
 
         listing.forEach((k, v) -> {
@@ -64,13 +58,13 @@ public class JobGetter {
             thread.start();
         });
 
-        
         JobOutWriter out = new JobOutWriter();
 
         process.forEach(e -> {
             try {
                 e.join();
-                drive.download(e.getDocId(), out.getPdfDir() + e.getJobInfo().getCompanyName().replaceAll("\\W+", ""));
+                String fileName = out.getPdfDir() + e.getJobInfo().getJobTitle().replaceAll("\\W+", "") + "_" + e.getJobInfo().getCompanyName().replaceAll("\\W+", "");
+                drive.download(e.getDocId(), fileName);
                 out.getWriter().append(new JobApply(e.getJobInfo().getListingUrl(), e.getJobInfo().getCompanyName(), false));
             } catch (InterruptedException ex) {
                 logger.error(ex);
@@ -78,7 +72,6 @@ public class JobGetter {
         });
 
 
-        // drive.download(newDoc, "test");
 
         logger.info("end");
     }
