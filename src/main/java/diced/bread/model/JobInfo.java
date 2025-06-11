@@ -7,12 +7,14 @@ public class JobInfo {
     private final String companyName;
     private final String jobTitle;
     private final boolean isSoftware;
+    private final ScrapeRecord scrapeRecord;
     
-    public JobInfo(URI listingUrl, String companyName, String jobTitle, boolean isSoftware) {
+    public JobInfo(URI listingUrl, String companyName, String jobTitle, boolean isSoftware, ScrapeRecord scrapeRecord) {
         this.listingUrl = listingUrl;
         this.companyName = companyName;
         this.jobTitle = jobTitle;
         this.isSoftware = isSoftware;
+        this.scrapeRecord = scrapeRecord;
     }  
 
     public URI getListingUrl() {
@@ -29,5 +31,9 @@ public class JobInfo {
 
     public boolean isIsSoftware() {
         return isSoftware;
+    }
+
+    public ScrapeRecord getScrapeRecord() {
+        return scrapeRecord;
     }
 }
