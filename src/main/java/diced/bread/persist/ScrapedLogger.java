@@ -1,7 +1,16 @@
 package diced.bread.persist;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,20 +20,62 @@ import diced.bread.model.ScrapeRecord;
 public class ScrapedLogger {
 
     private static final Logger logger = LogManager.getLogger(ScrapedLogger.class);
-    private static final Set<ScrapedLogger> cache; 
+    private static Set<ScrapeRecord> cache;
+    private Pattern pattern = Pattern.compile("^([^,]+),([^,]+),([^,]+)$");
+    private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+
 
     File file;
 
-    public void ScrapedLogger() {
-        new File("/store").mkdirs();
+    public ScrapedLogger() {
+        new File("store").mkdirs();
         file = new File("store/scrappedLog.log");
     }
 
-    public void logScrapeRecord(ScrapeRecord scrapeRecord){
-        throw new UnsupportedOperationException("Not implemented yet");
+    public void logScrapeRecord(ScrapeRecord scrapeRecord) {
+        try (java.io.FileWriter writer = new java.io.FileWriter(file, true)) {
+            String line = String.format("%s,%s,%s%n",
+                    scrapeRecord.provider(),
+                    scrapeRecord.id(),
+                    sdf.format(scrapeRecord.date()));
+            writer.write(line);
+            if (cache == null) {
+                cache = new HashSet<>();
+            }
+            cache.add(scrapeRecord);
+            logger.info("Logged ScrapeRecord: {}", line.trim());
+        } catch (IOException e) {
+            logger.error("Failed to log ScrapeRecord", e);
+        }
     }
 
-    public Set<ScrapeRecord> getSavedIds(){
-        throw new UnsupportedOperationException("Not implemented yet");
+    public Set<ScrapeRecord> getSavedIds() {
+        if (cache == null) {
+            cache = new HashSet<>();
+            if (file.exists()) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        Matcher matcher = pattern.matcher(line);
+                        if (matcher.matches()) {
+                            String first = matcher.group(1).trim();
+                            String second = matcher.group(2).trim();
+                            String dateStr = matcher.group(3).trim();
+                            Date date;
+                            try {
+                                date = sdf.parse(dateStr);
+                            } catch (ParseException e) {
+                                logger.warn("Failed to parse date: {}", dateStr, e);
+                                continue;
+                            }
+                            cache.add(new ScrapeRecord(first, second, date));
+                        }
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to read scrappedLog.log", e);
+                }
+            }
+        }
+        return cache;
     }
 }
