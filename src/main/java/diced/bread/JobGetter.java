@@ -25,6 +25,8 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
 import diced.bread.client.SeekClient;
+import diced.bread.google.DocContainer;
+import diced.bread.google.DriveContainer;
 import diced.bread.model.JobInfo;
 import diced.bread.persist.JobApply;
 import diced.bread.persist.JobOutWriter;

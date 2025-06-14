@@ -2,8 +2,8 @@ package diced.bread.process;
 
 import java.net.URI;
 
-import diced.bread.DocContainer;
-import diced.bread.DriveContainer;
+import diced.bread.google.DocContainer;
+import diced.bread.google.DriveContainer;
 import diced.bread.model.JobInfo;
 
 public class CVWriterProcess extends Thread {

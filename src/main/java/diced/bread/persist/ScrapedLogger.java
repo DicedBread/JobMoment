@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -21,6 +22,7 @@ public class ScrapedLogger {
 
     private static final Logger logger = LogManager.getLogger(ScrapedLogger.class);
     private static Set<ScrapeRecord> cache;
+    private static HashMap<String, Set<String>> searchCache;
     private Pattern pattern = Pattern.compile("^([^,]+),([^,]+),([^,]+)$");
     private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -68,7 +70,8 @@ public class ScrapedLogger {
                                 logger.warn("Failed to parse date: {}", dateStr, e);
                                 continue;
                             }
-                            cache.add(new ScrapeRecord(first, second, date));
+                            ScrapeRecord record = new ScrapeRecord(first, second, date);
+                            cacheRecord(record);
                         }
                     }
                 } catch (IOException e) {
@@ -78,4 +81,18 @@ public class ScrapedLogger {
         }
         return cache;
     }
+
+    public boolean existsFromId(String prov, String id){
+        if(!searchCache.containsKey(prov)) return false;
+        return searchCache.get(prov).contains(id);
+    }
+
+    private void cacheRecord(ScrapeRecord record){
+        cache.add(record);
+        if(!searchCache.containsKey(record.provider())){
+            searchCache.put(record.provider(), new HashSet<String>());
+        }
+        searchCache.get(record.provider()).add(record.id());
+    }
+
 }
