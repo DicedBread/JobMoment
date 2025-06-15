@@ -25,14 +25,21 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import diced.bread.DocContainer;
 import diced.bread.client.seekdata.Datum;
 import diced.bread.client.seekdata.Root;
 import diced.bread.model.JobInfo;
+import diced.bread.model.ScrapeRecord;
+import diced.bread.persist.ScrapedLogger;
 
 public class SeekClient implements Client {
     private static final Logger logger = LogManager.getLogger(SeekClient.class);
     private final Map<String, Datum> rawData = new HashMap<String, Datum>();
+
+    ScrapedLogger scrapeStore;
+
+    public SeekClient(ScrapedLogger scrapedLogger){
+        scrapeStore = scrapedLogger;
+    }
 
     public String getLink(int page, int pageSize) {
         return "https://www.seek.co.nz/api/jobsearch/v5/search?where=All+Auckland&page=" + page
@@ -56,8 +63,10 @@ public class SeekClient implements Client {
 
             Root r = gson.fromJson(o, Root.class);
             
-            SeekStore store = new SeekStore();
-            Set<String> saved = store.loadSavedIds();
+            // SeekStore store = new SeekStore();
+            // ScrapedLogger store = new ScrapedLogger();
+
+            // Set<String> saved = store.getSavedIds();
             // List<Datum> li = r.data.stream().filter(e -> saved.contains(e.id)).toList();
             System.out.println(r.data.size());
             r.data.forEach(e -> {
@@ -66,11 +75,13 @@ public class SeekClient implements Client {
                 Date sevenDaysAgo = cal.getTime();
 
                 // if(sevenDaysAgo.getTime() > e.listingDate.getTime()) return; 
-                if (saved.contains(e.id)) return;
+
+                // from id and prov
+                if (scrapeStore.existsFromId(SeekClient.class.getName(), s)) return;
                 rawData.put(e.id, e);
             });
 
-            store.logSeekDataIds(rawData.values().stream().map(e -> e.id).toList());
+            // store.logSeekDataIds(rawData.values().stream().map(e -> e.id).toList());
 
         } catch (URISyntaxException | IOException | InterruptedException e) {
             System.out.println(e);
@@ -85,6 +96,7 @@ public class SeekClient implements Client {
             String positionTitle = v.title;
             boolean isSoftware = false;
 
+            String id = v.id;
             // String allText = "";
             // v.bulletPoints.forEach(e -> {
             // allText.concat(e + " ");
@@ -99,7 +111,9 @@ public class SeekClient implements Client {
                 isSoftware = true;
             }
             try {
-                JobInfo ji = new JobInfo(new URI(listingUrl), companyName, positionTitle, isSoftware);
+                JobInfo ji = new JobInfo(new URI(listingUrl), companyName, positionTitle, isSoftware,
+                    new ScrapeRecord(SeekClient.class.getName(), id, new Date()) 
+                );
                 out.put(new URI(listingUrl), ji);
             } catch (URISyntaxException e) {
                 logger.error(listingUrl + " invalid uri" + e);

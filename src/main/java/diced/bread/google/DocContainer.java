@@ -1,4 +1,4 @@
-package diced.bread;
+package diced.bread.google;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -70,8 +70,6 @@ public class DocContainer {
 
             ArrayList<Request> l = new ArrayList<>(ediList);
             Collections.reverse(l);
-
-
 
             BatchUpdateDocumentRequest req = new BatchUpdateDocumentRequest().setRequests(l);
             BatchUpdateDocumentResponse res = docService.documents().batchUpdate(doc.getDocumentId(), req).execute();
