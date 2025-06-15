@@ -35,6 +35,12 @@ public class SeekClient implements Client {
     private static final Logger logger = LogManager.getLogger(SeekClient.class);
     private final Map<String, Datum> rawData = new HashMap<String, Datum>();
 
+    ScrapedLogger scrapeStore;
+
+    public SeekClient(ScrapedLogger scrapedLogger){
+        scrapeStore = scrapedLogger;
+    }
+
     public String getLink(int page, int pageSize) {
         return "https://www.seek.co.nz/api/jobsearch/v5/search?where=All+Auckland&page=" + page
                 + "&classification=6281&sortmode=ListedDate&workarrangement=2,1,3&pageSize=" + pageSize;
@@ -58,7 +64,7 @@ public class SeekClient implements Client {
             Root r = gson.fromJson(o, Root.class);
             
             // SeekStore store = new SeekStore();
-            ScrapedLogger store = new ScrapedLogger();
+            // ScrapedLogger store = new ScrapedLogger();
 
             // Set<String> saved = store.getSavedIds();
             // List<Datum> li = r.data.stream().filter(e -> saved.contains(e.id)).toList();
@@ -71,7 +77,7 @@ public class SeekClient implements Client {
                 // if(sevenDaysAgo.getTime() > e.listingDate.getTime()) return; 
 
                 // from id and prov
-                if (store.existsFromId(SeekClient.class.getName(), s)) return;
+                if (scrapeStore.existsFromId(SeekClient.class.getName(), s)) return;
                 rawData.put(e.id, e);
             });
 

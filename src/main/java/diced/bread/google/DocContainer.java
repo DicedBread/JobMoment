@@ -71,8 +71,6 @@ public class DocContainer {
             ArrayList<Request> l = new ArrayList<>(ediList);
             Collections.reverse(l);
 
-
-
             BatchUpdateDocumentRequest req = new BatchUpdateDocumentRequest().setRequests(l);
             BatchUpdateDocumentResponse res = docService.documents().batchUpdate(doc.getDocumentId(), req).execute();
             logger.info("replaced on file " + docId);

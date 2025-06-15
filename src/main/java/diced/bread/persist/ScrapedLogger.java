@@ -29,9 +29,8 @@ public class ScrapedLogger {
 
     File file;
 
-    public ScrapedLogger() {
-        new File("store").mkdirs();
-        file = new File("store/scrappedLog.log");
+    public ScrapedLogger(String file) {
+        this.file = new File(file);
     }
 
     public void logScrapeRecord(ScrapeRecord scrapeRecord) {
@@ -52,8 +51,10 @@ public class ScrapedLogger {
     }
 
     public Set<ScrapeRecord> getSavedIds() {
-        if (cache == null) {
+        if (cache == null || searchCache == null) {
+            logger.info("loading from store file");
             cache = new HashSet<>();
+            searchCache = new HashMap<>();
             if (file.exists()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
@@ -83,6 +84,7 @@ public class ScrapedLogger {
     }
 
     public boolean existsFromId(String prov, String id){
+        getSavedIds();
         if(!searchCache.containsKey(prov)) return false;
         return searchCache.get(prov).contains(id);
     }
@@ -94,5 +96,4 @@ public class ScrapedLogger {
         }
         searchCache.get(record.provider()).add(record.id());
     }
-
 }

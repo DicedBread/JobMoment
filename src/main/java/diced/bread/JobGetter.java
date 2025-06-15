@@ -1,5 +1,6 @@
 package diced.bread;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -30,6 +31,7 @@ import diced.bread.google.DriveContainer;
 import diced.bread.model.JobInfo;
 import diced.bread.persist.JobApply;
 import diced.bread.persist.JobOutWriter;
+import diced.bread.persist.ScrapedLogger;
 import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
@@ -42,16 +44,16 @@ public class JobGetter {
 
     DriveContainer drive;
     DocContainer doc;
+    ScrapedLogger store;
+    JobOutWriter out = new JobOutWriter();
 
     public void run() {
         logger.info("running");
 
-
-        SeekClient seek = new SeekClient();
-        seek.GetData(2, 40);
+        SeekClient seek = new SeekClient(store);
+        seek.GetData(0, 2);
         Map<URI, JobInfo> listing = seek.getJobInfo();
-        
-        
+
         List<CVWriterProcess> process = new ArrayList<>();
 
         listing.forEach((k, v) -> {
@@ -60,20 +62,24 @@ public class JobGetter {
             thread.start();
         });
 
-        JobOutWriter out = new JobOutWriter();
-
         process.forEach(e -> {
             try {
                 e.join();
-                String fileName = out.getPdfDir() + e.getJobInfo().getJobTitle().replaceAll("\\W+", "") + "_" + e.getJobInfo().getCompanyName().replaceAll("\\W+", "");
-                drive.download(e.getDocId(), fileName);
-                out.getWriter().append(new JobApply(e.getJobInfo().getListingUrl(), e.getJobInfo().getCompanyName(), false));
+                if (e.getDocId() != null) {
+
+                    String jobTitleForm = out.getPdfDir() + e.getJobInfo().getJobTitle().replaceAll("\\W+", "");
+                    String companyNameForm = e.getJobInfo().getCompanyName().replaceAll("\\W+", "");
+                    String fileName = jobTitleForm + "_" + companyNameForm;
+
+                    drive.download(e.getDocId(), fileName);
+                    store.logScrapeRecord(e.getJobInfo().getScrapeRecord());
+                    out.getWriter().append(
+                            new JobApply(e.getJobInfo().getListingUrl(), e.getJobInfo().getCompanyName(), false));
+                }
             } catch (InterruptedException ex) {
                 logger.error(ex);
             }
         });
-
-
 
         logger.info("end");
     }
@@ -92,6 +98,9 @@ public class JobGetter {
 
         doc = new DocContainer(docService);
         drive = new DriveContainer(driveService);
+
+        new File("store/").mkdirs();
+        store = new ScrapedLogger("store/scrapped.log");
     }
 
     private GoogleCredentials initCredentials() throws IOException, GeneralSecurityException {
