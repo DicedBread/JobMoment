@@ -30,11 +30,14 @@ import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
 import diced.bread.model.JobInfo;
 import diced.bread.persist.JobApply;
-import diced.bread.persist.JobOutWriter;
 import diced.bread.persist.ScrapedLogger;
+import diced.bread.persist.SummaryWriter;
 import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
+    private final String SUMMARY_ROOT_FOLDER = "out/";
+    private final String STORE_ROOT_FOLDER = "store/";
+
     private static final Logger logger = LogManager.getLogger(JobGetter.class);
 
     private static final String APPLICATION_NAME = "Google Docs API Java Service Account";
@@ -45,7 +48,6 @@ public class JobGetter {
     DriveContainer drive;
     DocContainer doc;
     ScrapedLogger store;
-    JobOutWriter out = new JobOutWriter();
 
     public void run() {
         logger.info("running");
@@ -54,32 +56,38 @@ public class JobGetter {
         seek.GetData(0, 2);
         Map<URI, JobInfo> listing = seek.getJobInfo();
 
-        List<CVWriterProcess> process = new ArrayList<>();
+        List<CVWriterProcess> processes = new ArrayList<>();
 
         listing.forEach((k, v) -> {
             CVWriterProcess thread = new CVWriterProcess(k, v, drive, doc);
-            process.add(thread);
+            processes.add(thread);
             thread.start();
         });
 
-        process.forEach(e -> {
-            try {
-                e.join();
-                if (e.getDocId() != null) {
+        if (!processes.isEmpty()) {
+            SummaryWriter summary = new SummaryWriter(SUMMARY_ROOT_FOLDER);
 
-                    String jobTitleForm = out.getPdfDir() + e.getJobInfo().getJobTitle().replaceAll("\\W+", "");
-                    String companyNameForm = e.getJobInfo().getCompanyName().replaceAll("\\W+", "");
-                    String fileName = jobTitleForm + "_" + companyNameForm;
+            processes.forEach(process -> {
+                try {
+                    process.join();
+                    if (process.getDocId() != null) {
+                        String jobTitleForm = process.getJobInfo().getJobTitle().replaceAll("\\W+", "");
+                        String companyNameForm = process.getJobInfo().getCompanyName().replaceAll("\\W+", "");
+                        String fileName = jobTitleForm + "_" + companyNameForm;
 
-                    drive.download(e.getDocId(), fileName);
-                    store.logScrapeRecord(e.getJobInfo().getScrapeRecord());
-                    out.getWriter().append(
-                            new JobApply(e.getJobInfo().getListingUrl(), e.getJobInfo().getCompanyName(), false));
+                        JobApply job = new JobApply(process.getJobInfo().getListingUrl(),
+                                process.getJobInfo().getCompanyName(), false);
+                                
+                        summary.appendJob(job);
+                        summary.appendFile(drive.downloadData(process.getDocId()), fileName);
+                        store.logScrapeRecord(process.getJobInfo().getScrapeRecord());
+                    }
+                } catch (InterruptedException ex) {
+                    logger.error(ex);
                 }
-            } catch (InterruptedException ex) {
-                logger.error(ex);
-            }
-        });
+            });
+
+        }
 
         logger.info("end");
     }
@@ -99,8 +107,8 @@ public class JobGetter {
         doc = new DocContainer(docService);
         drive = new DriveContainer(driveService);
 
-        new File("store/").mkdirs();
-        store = new ScrapedLogger("store/scrapped.log");
+        new File(STORE_ROOT_FOLDER).mkdirs();
+        store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
     }
 
     private GoogleCredentials initCredentials() throws IOException, GeneralSecurityException {

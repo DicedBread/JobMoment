@@ -44,10 +44,29 @@ public class DriveContainer {
             PDDocument pf = Loader.loadPDF(outputStream.toByteArray());
             pf.removePage(0);
             pf.save(fileLoc);
+            
             pf.close();
             logger.info("document " + documentId + " saved to " + outputPath);
         } catch (IOException e) {
             logger.error("failed to download " + documentId + " error " + e);
         }
+    }
+
+    public ByteArrayOutputStream downloadData(String documentId){
+        try {
+            ByteArrayOutputStream initOutputStream = new ByteArrayOutputStream();
+            driveService.files().export(documentId, "application/pdf").executeMediaAndDownloadTo(initOutputStream);
+            PDDocument pf = Loader.loadPDF(initOutputStream.toByteArray());
+            pf.removePage(0);
+            initOutputStream.close();
+            ByteArrayOutputStream finalOutputStream = new ByteArrayOutputStream();
+            
+            pf.save(finalOutputStream);
+            pf.close();
+            return finalOutputStream;
+        } catch (IOException e) {
+            logger.error("failed to download " + documentId + " error " + e);
+        }
+        return null;
     }
 }
