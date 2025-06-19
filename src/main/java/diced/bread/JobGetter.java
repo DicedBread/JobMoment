@@ -25,6 +25,7 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
+import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
@@ -35,6 +36,8 @@ import diced.bread.persist.SummaryWriter;
 import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
+    private final boolean SAVE = false;
+
     private final String SUMMARY_ROOT_FOLDER = "out/";
     private final String STORE_ROOT_FOLDER = "store/";
 
@@ -53,11 +56,15 @@ public class JobGetter {
         logger.info("running");
 
         SeekClient seek = new SeekClient(store);
-        seek.GetData(0, 2);
+
+        for(int i = 0; i < 7; i++){
+            seek.GetData(i, SeekClient.MAX_PAGE_VAL);
+        }
+        seek.addFilter(new JobFilter());
         Map<URI, JobInfo> listing = seek.getJobInfo();
 
         List<CVWriterProcess> processes = new ArrayList<>();
-
+        logger.info("starting " + listing.keySet().size() + " jobapps");
         listing.forEach((k, v) -> {
             CVWriterProcess thread = new CVWriterProcess(k, v, drive, doc);
             processes.add(thread);
@@ -73,14 +80,16 @@ public class JobGetter {
                     if (process.getDocId() != null) {
                         String jobTitleForm = process.getJobInfo().getJobTitle().replaceAll("\\W+", "");
                         String companyNameForm = process.getJobInfo().getCompanyName().replaceAll("\\W+", "");
-                        String fileName = jobTitleForm + "_" + companyNameForm;
+                        String fileName = jobTitleForm + "_" + companyNameForm + ".pdf";
 
                         JobApply job = new JobApply(process.getJobInfo().getListingUrl(),
                                 process.getJobInfo().getCompanyName(), false);
                                 
                         summary.appendJob(job);
                         summary.appendFile(drive.downloadData(process.getDocId()), fileName);
-                        store.logScrapeRecord(process.getJobInfo().getScrapeRecord());
+                        if(SAVE){
+                            store.logScrapeRecord(process.getJobInfo().getScrapeRecord());
+                        }
                     }
                 } catch (InterruptedException ex) {
                     logger.error(ex);
