@@ -25,7 +25,7 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
-import diced.bread.client.JobFilter.JobFilter;
+import diced.bread.client.JobFilter.JobTitleFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
@@ -36,7 +36,7 @@ import diced.bread.persist.SummaryWriter;
 import diced.bread.process.CVWriterProcess;
 
 public class JobGetter {
-    private final boolean SAVE = false;
+    private final boolean SAVE = true;
 
     private final String SUMMARY_ROOT_FOLDER = "out/";
     private final String STORE_ROOT_FOLDER = "store/";
@@ -52,16 +52,24 @@ public class JobGetter {
     DocContainer doc;
     ScrapedLogger store;
 
+    List<JobTitleFilter> filters;
+
     public void run() {
         logger.info("running");
 
         SeekClient seek = new SeekClient(store);
-
         for(int i = 0; i < 7; i++){
             seek.GetData(i, SeekClient.MAX_PAGE_VAL);
         }
-        seek.addFilter(new JobFilter());
+        filters.forEach(e -> seek.addFilter(e));
+        
         Map<URI, JobInfo> listing = seek.getJobInfo();
+        
+        int count = listing.size();
+        if(count > 20){
+            logger.warn(count + " listings stopping process");
+            return;
+        }
 
         List<CVWriterProcess> processes = new ArrayList<>();
         logger.info("starting " + listing.keySet().size() + " jobapps");
@@ -101,6 +109,15 @@ public class JobGetter {
         logger.info("end");
     }
 
+    private void setupFilters(){
+        List<String> includeIfContains = List.of("entry", "support", "level 1", "junior", "internship", "graduate", "tester");
+        List<String> excludeIfContains = List.of("senior", "manager");
+        
+        filters = new ArrayList<>();
+        filters.add(new JobTitleFilter(excludeIfContains, true));
+        filters.add(new JobTitleFilter(includeIfContains, false));
+    }
+
     private JobGetter() throws IOException, GeneralSecurityException {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         GoogleCredentials credentials = initCredentials();
@@ -118,6 +135,8 @@ public class JobGetter {
 
         new File(STORE_ROOT_FOLDER).mkdirs();
         store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
+
+        setupFilters();
     }
 
     private GoogleCredentials initCredentials() throws IOException, GeneralSecurityException {

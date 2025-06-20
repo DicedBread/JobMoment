@@ -7,20 +7,23 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.plugins.util.ResolverUtil.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import diced.bread.client.JobFilter.JobFilter;
+import diced.bread.client.JobFilter.JobTitleFilter;
 import diced.bread.client.seekdata.Datum;
 import diced.bread.client.seekdata.Root;
 import diced.bread.model.JobInfo;
@@ -35,9 +38,11 @@ public class SeekClient implements Client {
 
     ScrapedLogger scrapeStore;
 
-    private JobFilter jobFilter;
+    private List<JobTitleFilter> filters = new ArrayList<>();
 
-    public SeekClient(ScrapedLogger scrapedLogger){
+    // private JobTitleFilter jobFilter;
+
+    public SeekClient(ScrapedLogger scrapedLogger) {
         scrapeStore = scrapedLogger;
     }
 
@@ -46,8 +51,8 @@ public class SeekClient implements Client {
                 + "&classification=6281&sortmode=ListedDate&workarrangement=2,1,3&pageSize=" + pageSize;
     }
 
-    public void addFilter(JobFilter jobFilter){
-        this.jobFilter = jobFilter;
+    public void addFilter(JobTitleFilter jobFilter) {
+        filters.add(jobFilter);
     }
 
     public void GetData(int page, int pageSize) {
@@ -61,7 +66,7 @@ public class SeekClient implements Client {
             HttpResponse<String> res = client.send(req, BodyHandlers.ofString());
             logger.info("seek query res code: " + res.statusCode());
 
-            if(res.statusCode() != 200){
+            if (res.statusCode() != 200) {
                 logger.error(res.body());
                 return;
             }
@@ -72,15 +77,15 @@ public class SeekClient implements Client {
             String prettyJsonString = gson.toJson(o);
 
             Root r = gson.fromJson(o, Root.class);
-            
+
             logger.info("caching " + r.data.size() + " jobs");
             r.data.forEach(e -> {
                 Calendar cal = Calendar.getInstance();
                 cal.add(Calendar.DAY_OF_YEAR, -6);
                 Date sevenDaysAgo = cal.getTime();
 
-
-                if (scrapeStore.existsFromId(SeekClient.class.getName(), s)) return;
+                if (scrapeStore.existsFromId(SeekClient.class.getName(), s))
+                    return;
                 rawData.put(e.id, e);
             });
 
@@ -109,13 +114,22 @@ public class SeekClient implements Client {
             }
             try {
                 JobInfo ji = new JobInfo(new URI(listingUrl), companyName, positionTitle, isSoftware,
-                    new ScrapeRecord(SeekClient.class.getName(), id, new Date()) 
-                );
-                
+                        new ScrapeRecord(SeekClient.class.getName(), id, new Date()));
+
                 boolean alreadyMade = scrapeStore.existsFromId(SeekClient.class.getName(), id);
-                if(alreadyMade) return;
-                boolean filterEval = jobFilter != null && jobFilter.filter(ji);  
-                if(!filterEval){ return; }
+                if (alreadyMade)
+                    return;
+
+
+                for (JobTitleFilter f : filters) {
+                    boolean filterEval = f.shouldExclude(ji);
+                    logger.debug("val: "+  filterEval +" " + ji.getJobTitle());
+                    if (filterEval) {
+                        logger.debug("excluded " + ji.getJobTitle());
+                        return;
+                    }
+                }
+                logger.debug("included " + ji.getJobTitle());
                 out.put(new URI(listingUrl), ji);
             } catch (URISyntaxException e) {
                 logger.error(listingUrl + " invalid uri" + e);
