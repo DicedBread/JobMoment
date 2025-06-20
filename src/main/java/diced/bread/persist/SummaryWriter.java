@@ -42,6 +42,7 @@ public class SummaryWriter {
     public void appendFile(ByteArrayOutputStream data, String fileName){
         File f = new File(pdfDir + fileName);   
         try (OutputStream dos = new FileOutputStream(f)) {
+            logger.info("saving file at" + f.getCanonicalPath());
             dos.write(data.toByteArray());
             dos.flush();
         } catch (IOException e) {
