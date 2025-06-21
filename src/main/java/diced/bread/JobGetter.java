@@ -33,7 +33,7 @@ import diced.bread.model.JobInfo;
 import diced.bread.persist.JobApply;
 import diced.bread.persist.ScrapedLogger;
 import diced.bread.persist.SummaryWriter;
-import diced.bread.process.CVWriterProcess;
+import diced.bread.process.CLWriterProcess;
 
 public class JobGetter {
     private final boolean SAVE = true;
@@ -58,23 +58,19 @@ public class JobGetter {
         logger.info("running");
 
         SeekClient seek = new SeekClient(store);
-        for(int i = 0; i < 7; i++){
-            seek.GetData(i, SeekClient.MAX_PAGE_VAL);
-        }
         filters.forEach(e -> seek.addFilter(e));
-        
         Map<URI, JobInfo> listing = seek.getJobInfo();
-        
         int count = listing.size();
+        logger.info("jobs found " + count);
         if(count > 20){
             logger.warn(count + " listings stopping process");
             return;
         }
 
-        List<CVWriterProcess> processes = new ArrayList<>();
-        logger.info("starting " + listing.keySet().size() + " jobapps");
+        List<CLWriterProcess> processes = new ArrayList<>();
+        logger.info("starting " + listing.keySet().size() + " CL processors");
         listing.forEach((k, v) -> {
-            CVWriterProcess thread = new CVWriterProcess(k, v, drive, doc);
+            CLWriterProcess thread = new CLWriterProcess(k, v, drive, doc);
             processes.add(thread);
             thread.start();
         });
