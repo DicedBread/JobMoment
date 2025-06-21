@@ -6,7 +6,7 @@ import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
 import diced.bread.model.JobInfo;
 
-public class CVWriterProcess extends Thread {
+public class CLWriterProcess extends Thread {
     private static final String BASE_DOCUMENT_ID = "16fm0Fyo_N7TulVRo4q8-SJ_DZQqUzPjtKobnAtyW_iY";
 
     private URI uri;
@@ -15,7 +15,7 @@ public class CVWriterProcess extends Thread {
     private DriveContainer driveService;
     private String docId;
 
-    public CVWriterProcess(URI uri, JobInfo jobInfo, DriveContainer driveService, DocContainer docService) {
+    public CLWriterProcess(URI uri, JobInfo jobInfo, DriveContainer driveService, DocContainer docService) {
         this.uri = uri;
         this.jobInfo = jobInfo;
         this.driveService = driveService;
