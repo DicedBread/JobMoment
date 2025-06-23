@@ -13,7 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class SummaryWriter {
-        private static final Logger logger = LogManager.getLogger(SummaryWriter.class);
+    private static final Logger logger = LogManager.getLogger(SummaryWriter.class);
 
 
     private String outFolderDir;
@@ -42,7 +42,7 @@ public class SummaryWriter {
     public void appendFile(ByteArrayOutputStream data, String fileName){
         File f = new File(pdfDir + fileName);   
         try (OutputStream dos = new FileOutputStream(f)) {
-            logger.info("saving file at" + f.getCanonicalPath());
+            logger.info("saving file at " + f.getCanonicalPath());
             dos.write(data.toByteArray());
             dos.flush();
         } catch (IOException e) {
