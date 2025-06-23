@@ -1,5 +1,6 @@
 package diced.bread;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,7 +37,7 @@ import diced.bread.persist.SummaryWriter;
 import diced.bread.process.CLWriterProcess;
 
 public class JobGetter {
-    private final boolean SAVE = true;
+    private final boolean SAVE = false;
 
     private final String SUMMARY_ROOT_FOLDER = "out/";
     private final String STORE_ROOT_FOLDER = "store/";
@@ -62,7 +63,7 @@ public class JobGetter {
         Map<URI, JobInfo> listing = seek.getJobInfo();
         int count = listing.size();
         logger.info("jobs found " + count);
-        if(count > 20){
+        if (count > 20) {
             logger.warn(count + " listings stopping process");
             return;
         }
@@ -77,38 +78,45 @@ public class JobGetter {
 
         if (!processes.isEmpty()) {
             SummaryWriter summary = new SummaryWriter(SUMMARY_ROOT_FOLDER);
-
-            processes.forEach(process -> {
+            for (CLWriterProcess process : processes) {
                 try {
                     process.join();
                     if (process.getDocId() != null) {
-                        String jobTitleForm = process.getJobInfo().getJobTitle().replaceAll("\\W+", "");
-                        String companyNameForm = process.getJobInfo().getCompanyName().replaceAll("\\W+", "");
-                        String fileName = jobTitleForm + "_" + companyNameForm + ".pdf";
-
-                        JobApply job = new JobApply(process.getJobInfo().getListingUrl(),
-                                process.getJobInfo().getCompanyName(), false);
-                                
-                        summary.appendJob(job);
-                        summary.appendFile(drive.downloadData(process.getDocId()), fileName);
-                        if(SAVE){
-                            store.logScrapeRecord(process.getJobInfo().getScrapeRecord());
-                        }
+                        collect(summary, process.getJobInfo(), process.getPdfData());
                     }
                 } catch (InterruptedException ex) {
                     logger.error(ex);
                 }
-            });
-
+            }
         }
 
         logger.info("end");
     }
 
-    private void setupFilters(){
-        List<String> includeIfContains = List.of("entry", "support", "level 1", "junior", "internship", "graduate", "tester");
+    private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData) {
+        if(jobInfo == null || pdfData == null){
+            logger.error("something null " + jobInfo + " " + pdfData);
+            return;
+        }
+        String jobTitleForm = jobInfo.getJobTitle().replaceAll("\\W+", "");
+        String companyNameForm = jobInfo.getCompanyName().replaceAll("\\W+", "");
+        String fileName = jobTitleForm + "_" + companyNameForm + ".pdf";
+
+        JobApply job = new JobApply(jobInfo.getListingUrl(),
+                jobInfo.getCompanyName(), false);
+
+        summary.appendJob(job);
+        summary.appendFile(pdfData, fileName);
+        if (SAVE) {
+            store.logScrapeRecord(jobInfo.getScrapeRecord());
+        }
+    }
+
+    private void setupFilters() {
+        List<String> includeIfContains = List.of("entry", "support", "level 1", "junior", "internship", "graduate",
+                "tester", "L1");
         List<String> excludeIfContains = List.of("senior", "manager");
-        
+
         filters = new ArrayList<>();
         filters.add(new JobTitleFilter(excludeIfContains, true));
         filters.add(new JobTitleFilter(includeIfContains, false));
