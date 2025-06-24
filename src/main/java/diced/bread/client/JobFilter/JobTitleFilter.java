@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 
 import diced.bread.model.JobInfo;
 
-public class JobTitleFilter {
+public class JobTitleFilter implements JobFilter{
 
     private final Set<String> words;
     private final boolean excludeIfDoesContain;
