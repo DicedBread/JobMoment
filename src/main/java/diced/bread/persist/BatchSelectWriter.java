@@ -21,7 +21,7 @@ public class BatchSelectWriter {
 
     File file;
 
-    public void BatchSelectWriter(String fileName) {
+    public BatchSelectWriter(String fileName) {
         this.file = new File(fileName);
     }
 
