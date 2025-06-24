@@ -22,7 +22,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
-import diced.bread.client.JobFilter.JobTitleFilter;
+import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.seekdata.Datum;
 import diced.bread.client.seekdata.Root;
 import diced.bread.model.JobInfo;
@@ -35,7 +35,7 @@ public class SeekClient implements Client {
     private static final Logger logger = LogManager.getLogger(SeekClient.class);
     public static final int MAX_PAGE_VAL = 100;
 
-    private List<JobTitleFilter> filters = new ArrayList<>();
+    private List<JobFilter> filters = new ArrayList<>();
     ScrapedLogger scrapeStore;
 
     public SeekClient(ScrapedLogger scrapedLogger) {
@@ -48,7 +48,7 @@ public class SeekClient implements Client {
                 + "&classification=6281&sortmode=ListedDate&workarrangement=2,1,3&pageSize=" + pageSize;
     }
 
-    public void addFilter(JobTitleFilter jobFilter) {
+    public void addFilter(JobFilter jobFilter) {
         filters.add(jobFilter);
     }
 
@@ -108,7 +108,7 @@ public class SeekClient implements Client {
         if (alreadyMade)
             return true;
 
-        for (JobTitleFilter f : filters) {
+        for (JobFilter f : filters) {
             boolean filterEval = f.shouldExclude(jobInfo);
             logger.debug("val: " + filterEval + " " + jobInfo.getJobTitle());
             if (filterEval) {
