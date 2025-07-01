@@ -32,7 +32,8 @@ public class CLWriterProcess extends Thread {
     @Override
     public void run() {
         super.run();
-        docId = driveService.createCopy(BASE_DOCUMENT_ID, jobInfo.getCompanyName());
+        String docTitle = jobInfo.getJobTitle() + " " + jobInfo.getCompanyName();
+        docId = driveService.createCopy(BASE_DOCUMENT_ID, docTitle);
         if(docId == null){
             logger.error("failed to copy document ending process " + docId);
             return;

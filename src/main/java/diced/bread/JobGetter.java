@@ -6,10 +6,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,7 +45,7 @@ import diced.bread.process.CLWriterProcess;
 public class JobGetter {
     private final boolean SAVE = true;
     private final boolean batchSearch = false;
-    
+
     private final String BATCH_SELECT_FILE = "batch.md";
     private final String SUMMARY_ROOT_FOLDER = "out/";
     private final String STORE_ROOT_FOLDER = "store/";
@@ -69,9 +72,7 @@ public class JobGetter {
         int count = listing.size();
         logger.info("jobs found " + count);
 
-
-        
-        if(batchSearch){
+        if (batchSearch) {
             BatchSelectWriter batchSelectWriter = new BatchSelectWriter(BATCH_SELECT_FILE);
             listing.forEach((k, v) -> {
                 batchSelectWriter.appendJob(v);
@@ -111,7 +112,7 @@ public class JobGetter {
     }
 
     private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData) {
-        if(jobInfo == null || pdfData == null){
+        if (jobInfo == null || pdfData == null) {
             logger.error("something null " + jobInfo + " " + pdfData);
             return;
         }
@@ -136,12 +137,38 @@ public class JobGetter {
 
         filters = new ArrayList<>();
         filters.add(new JobTitleFilter(excludeIfContains, true));
-        // filters.add(new JobTitleFilter(includeIfContains, false));
+        filters.add(new JobTitleFilter(includeIfContains, false));
 
-        if(new File(BATCH_SELECT_FILE).exists()){
+        if (new File(BATCH_SELECT_FILE).exists()) {
             logger.info("batch file found opening");
             filters.add(new DoJobInSetFilter(BatchSelectWriter.parseBatchSelectFile(new File(BATCH_SELECT_FILE))));
         }
+    }
+
+    public void deleteOldFiles() {
+        long oneWeekMillis = 7L * 24 * 60 * 60 * 1000;
+        long now = System.currentTimeMillis();
+        Date weekAgo = new Date(now - oneWeekMillis);
+
+        SimpleDateFormat rfc3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+        rfc3339.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String weekAgoRfc3339 = rfc3339.format(weekAgo);
+        System.out.println("Week ago (RFC 3339): " + weekAgoRfc3339);
+
+        List<com.google.api.services.drive.model.File> v = drive.getAll();
+
+        var toDel = v.stream().filter(e -> {
+            if(!e.getOwnedByMe()) return false;
+            boolean overAWeekAgo = false;
+            if (e.getCreatedTime() != null) {
+                overAWeekAgo = now - e.getCreatedTime().getValue() > oneWeekMillis;
+            }
+            // System.out.println(e.getId() + " " + e.getCreatedTime() + " overAWeekAgo=" + overAWeekAgo + " " + e.getOwnedByMe());
+            return overAWeekAgo;
+        }).toList();
+
+        logger.info("files found " + v.size() + " deleting " + toDel.size());
+        drive.deleteAll(toDel);
     }
 
     private JobGetter() throws IOException, GeneralSecurityException {
@@ -177,5 +204,6 @@ public class JobGetter {
     public static void main(String... args) throws IOException, GeneralSecurityException {
         JobGetter jg = new JobGetter();
         jg.run();
+        // jg.deleteOldFiles();
     }
 }
