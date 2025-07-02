@@ -26,6 +26,7 @@ import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.docs.v1.DocsScopes;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.About.StorageQuota;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
@@ -55,7 +56,8 @@ public class JobGetter {
     private static final String APPLICATION_NAME = "Google Docs API Java Service Account";
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account.json";
-    private static final String DOCUMENT_ID = "16fm0Fyo_N7TulVRo4q8-SJ_DZQqUzPjtKobnAtyW_iY";
+    // private static final String DOCUMENT_ID =
+    // "16fm0Fyo_N7TulVRo4q8-SJ_DZQqUzPjtKobnAtyW_iY";
 
     DriveContainer drive;
     DocContainer doc;
@@ -132,12 +134,14 @@ public class JobGetter {
 
     private void setupFilters() {
         List<String> includeIfContains = List.of("entry", "support", "level 1", "junior", "internship", "graduate",
-                "tester", "L1");
+                "tester", "l1", "intern");
         List<String> excludeIfContains = List.of("senior", "manager", "lead", "head");
 
         filters = new ArrayList<>();
         filters.add(new JobTitleFilter(excludeIfContains, true));
-        filters.add(new JobTitleFilter(includeIfContains, false));
+        if (!batchSearch && !new File(BATCH_SELECT_FILE).exists()) {
+            filters.add(new JobTitleFilter(includeIfContains, false));
+        }
 
         if (new File(BATCH_SELECT_FILE).exists()) {
             logger.info("batch file found opening");
@@ -153,17 +157,18 @@ public class JobGetter {
         SimpleDateFormat rfc3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         rfc3339.setTimeZone(TimeZone.getTimeZone("UTC"));
         String weekAgoRfc3339 = rfc3339.format(weekAgo);
-        System.out.println("Week ago (RFC 3339): " + weekAgoRfc3339);
 
         List<com.google.api.services.drive.model.File> v = drive.getAll();
 
         var toDel = v.stream().filter(e -> {
-            if(!e.getOwnedByMe()) return false;
+            if (!e.getOwnedByMe())
+                return false;
             boolean overAWeekAgo = false;
             if (e.getCreatedTime() != null) {
                 overAWeekAgo = now - e.getCreatedTime().getValue() > oneWeekMillis;
             }
-            // System.out.println(e.getId() + " " + e.getCreatedTime() + " overAWeekAgo=" + overAWeekAgo + " " + e.getOwnedByMe());
+            // System.out.println(e.getId() + " " + e.getCreatedTime() + " overAWeekAgo=" +
+            // overAWeekAgo + " " + e.getOwnedByMe());
             return overAWeekAgo;
         }).toList();
 
@@ -203,7 +208,24 @@ public class JobGetter {
 
     public static void main(String... args) throws IOException, GeneralSecurityException {
         JobGetter jg = new JobGetter();
+        if(!jg.checkStorageQuotaOk()) return;
+        jg.deleteOldFiles();
         jg.run();
-        // jg.deleteOldFiles();
+    }
+
+    public boolean checkStorageQuotaOk() {
+        StorageQuota quota = drive.getStorageQuota();
+        if(quota == null) {
+            logger.error("no quota found ending process");
+            return false;
+        };
+        if(quota.getLimit() <= 0){
+            logger.error("quota limit 0 ending process");
+            return false;
+        }
+        double percent = quota.getUsage() / quota.getLimit();
+        logger.info("quota used " + (percent * 100) + "%");
+        logger.info("quota used " + quota.getUsage() +" of " + quota.getLimit());
+        return true;
     }
 }

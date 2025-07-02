@@ -15,6 +15,8 @@ import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.About;
+import com.google.api.services.drive.model.About.StorageQuota;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 
@@ -100,6 +102,7 @@ public class DriveContainer {
      * deletes files provided in list 
      */
     public void deleteAll(List<File> files) {
+        if(files.isEmpty()) return;
         BatchRequest batch = driveService.batch();
         files.forEach(file -> {
             try {
@@ -122,12 +125,34 @@ public class DriveContainer {
                 logger.error("failed to add id: " + file.getId() + " to queue " + file);
             }
         });
-        logger.info("deleting " + files.size() + "files");
+        logger.info("deleting " + files.size() + " files");
         try {
             batch.execute();
             logger.info("deleted " + files.size() + "files");
         } catch (IOException e) {
             logger.error("failed to batch delete " + e);
         }
+    }
+
+    // public void printStorageQuota(){
+    //     try {
+    //         About f = driveService.about().get().setFields("storageQuota").execute();
+    //         About.StorageQuota quota = f.getStorageQuota();
+    //         float percent = quota.getUsage() / quota.getLimit();
+    //         logger.info("quota used " + (percent * 100) + "%");
+    //         System.out.println("used: " + f.getStorageQuota().toPrettyString());
+    //     } catch (IOException e) {
+    //         System.out.println(e);
+    //     }
+    // }
+
+    public StorageQuota getStorageQuota(){
+        try {
+            About f = driveService.about().get().setFields("storageQuota").execute();
+            return  f.getStorageQuota();
+        } catch (IOException e) {
+            logger.error("failed to get storage quota " + e);
+        }
+        return null;
     }
 }
