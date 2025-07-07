@@ -135,7 +135,7 @@ public class JobGetter {
     private void setupFilters() {
         List<String> includeIfContains = List.of("entry", "support", "level 1", "junior", "internship", "graduate",
                 "tester", "l1", "intern");
-        List<String> excludeIfContains = List.of("senior", "manager", "lead", "head");
+        List<String> excludeIfContains = List.of("senior", "manager", "lead", "head", "advisor");
 
         filters = new ArrayList<>();
         filters.add(new JobTitleFilter(excludeIfContains, true));
