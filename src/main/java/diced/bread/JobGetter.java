@@ -206,12 +206,12 @@ public class JobGetter {
         return credentials;
     }
 
-    public static void main(String... args) throws IOException, GeneralSecurityException {
-        JobGetter jg = new JobGetter();
-        if(!jg.checkStorageQuotaOk()) return;
-        jg.deleteOldFiles();
-        jg.run();
-    }
+    // public static void main(String... args) throws IOException, GeneralSecurityException {
+    //     JobGetter jg = new JobGetter();
+    //     if(!jg.checkStorageQuotaOk()) return;
+    //     jg.deleteOldFiles();
+    //     jg.run();
+    // }
 
     public boolean checkStorageQuotaOk() {
         StorageQuota quota = drive.getStorageQuota();
