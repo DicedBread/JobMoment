@@ -176,7 +176,7 @@ public class JobGetter {
         drive.deleteAll(toDel);
     }
 
-    private JobGetter() throws IOException, GeneralSecurityException {
+    public JobGetter() throws IOException, GeneralSecurityException {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         GoogleCredentials credentials = initCredentials();
 
