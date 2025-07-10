@@ -4,11 +4,11 @@ import java.util.Set;
 
 import diced.bread.model.JobInfo;
 
-public class DoJobInSetFilter implements JobFilter{
+public class JobIdInclusionFilter implements JobFilter{
 
     Set<String> jobIds;
     
-    public DoJobInSetFilter(Set<String> jobIds){
+    public JobIdInclusionFilter(Set<String> jobIds){
         this.jobIds = jobIds;
     } 
 
