@@ -30,8 +30,8 @@ import com.google.api.services.drive.model.About.StorageQuota;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
-import diced.bread.client.JobFilter.DoJobInSetFilter;
 import diced.bread.client.JobFilter.JobFilter;
+import diced.bread.client.JobFilter.JobIdInclusionFilter;
 import diced.bread.client.JobFilter.JobTitleFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
@@ -145,7 +145,7 @@ public class JobGetter_SeekStore {
 
         if (new File(BATCH_SELECT_FILE).exists()) {
             logger.info("batch file found opening");
-            filters.add(new DoJobInSetFilter(BatchSelectWriter.parseBatchSelectFile(new File(BATCH_SELECT_FILE))));
+            filters.add(new JobIdInclusionFilter(BatchSelectWriter.parseBatchSelectFile(new File(BATCH_SELECT_FILE))));
         }
     }
 
