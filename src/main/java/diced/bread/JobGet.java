@@ -21,16 +21,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.docs.v1.DocsScopes;
-import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
-import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
@@ -124,14 +118,21 @@ public class JobGet {
         List<CLWriterProcess> processes = new ArrayList<>();
         logger.info("starting " + listing.keySet().size() + " CL processors");
 
-        var drive = getDriveContainer();
-        var doc = getDocContainer();
+        try {
+            DriveContainer drive = new DriveContainer(SERVICE_ACCOUNT_KEY_PATH);
+            DocContainer doc = new DocContainer(SERVICE_ACCOUNT_KEY_PATH);
 
-        listing.forEach((k, v) -> {
-            CLWriterProcess thread = new CLWriterProcess(k, v, drive, doc);
-            processes.add(thread);
-            thread.start();
-        });
+            listing.forEach((url, jobInfo) -> {
+                CLWriterProcess thread = new CLWriterProcess(url, jobInfo, drive, doc);
+                processes.add(thread);
+                thread.start();
+            });
+
+        } catch (IOException | GeneralSecurityException e) {
+            logger.error("google container service failed " + e);
+        }finally{
+            processes.clear();
+        }
 
         if (!processes.isEmpty()) {
             SummaryWriter summary = new SummaryWriter(DEFAULT_SUMMARY_ROOT_FOLDER);
@@ -191,7 +192,7 @@ public class JobGet {
 
         List<String> excludeIfContains = List.of("senior", "manager", "lead", "head", "advisor");
         client.addFilter(new JobTitleFilter(excludeIfContains, true));
-        
+
         Map<URI, JobInfo> listing = client.getJobInfo();
         BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
         logger.info("writing " + listing.size() + " listings to batch");
@@ -225,37 +226,4 @@ public class JobGet {
                 .createScoped(Collections.singleton(DriveScopes.DRIVE));
         return credentials;
     }
-
-    // private DocContainer getDocContainer() {
-    //     try {
-    //         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-    //         GoogleCredentials credentials = initCredentials();
-
-    //         Docs docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
-    //                 .setApplicationName(APPLICATION_NAME)
-    //                 .build();
-
-    //         return new DocContainer(docService);
-    //     } catch (IOException | GeneralSecurityException e) {
-    //         logger.error("google login failed " + e);
-    //     }
-    //     return null;
-    // }
-
-    // private DriveContainer getDriveContainer() {
-    //     try {
-    //         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-    //         GoogleCredentials credentials = initCredentials();
-
-    //         Drive driveService = new Drive.Builder(new NetHttpTransport(), JSON_FACTORY,
-    //                 new HttpCredentialsAdapter(credentials))
-    //                 .setApplicationName(APPLICATION_NAME)
-    //                 .build();
-
-    //         return new DriveContainer(driveService);
-    //     } catch (IOException | GeneralSecurityException e) {
-    //         logger.error("google login failed " + e);
-    //     }
-    //     return null;
-    // }
 }
