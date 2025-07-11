@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import diced.bread.model.JobInfo;
 
+@Deprecated
 public class JobTitleFilter implements JobFilter{
 
     private final Set<String> words;
