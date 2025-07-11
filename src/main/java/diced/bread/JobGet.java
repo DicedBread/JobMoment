@@ -51,7 +51,6 @@ public class JobGet {
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
 
     private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account.json";
-    private static final String APPLICATION_NAME = "Google Docs API Java Service Account";
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
@@ -227,36 +226,36 @@ public class JobGet {
         return credentials;
     }
 
-    private DocContainer getDocContainer() {
-        try {
-            HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            GoogleCredentials credentials = initCredentials();
+    // private DocContainer getDocContainer() {
+    //     try {
+    //         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+    //         GoogleCredentials credentials = initCredentials();
 
-            Docs docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
+    //         Docs docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
+    //                 .setApplicationName(APPLICATION_NAME)
+    //                 .build();
 
-            return new DocContainer(docService);
-        } catch (IOException | GeneralSecurityException e) {
-            logger.error("google login failed " + e);
-        }
-        return null;
-    }
+    //         return new DocContainer(docService);
+    //     } catch (IOException | GeneralSecurityException e) {
+    //         logger.error("google login failed " + e);
+    //     }
+    //     return null;
+    // }
 
-    private DriveContainer getDriveContainer() {
-        try {
-            HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            GoogleCredentials credentials = initCredentials();
+    // private DriveContainer getDriveContainer() {
+    //     try {
+    //         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+    //         GoogleCredentials credentials = initCredentials();
 
-            Drive driveService = new Drive.Builder(new NetHttpTransport(), JSON_FACTORY,
-                    new HttpCredentialsAdapter(credentials))
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
+    //         Drive driveService = new Drive.Builder(new NetHttpTransport(), JSON_FACTORY,
+    //                 new HttpCredentialsAdapter(credentials))
+    //                 .setApplicationName(APPLICATION_NAME)
+    //                 .build();
 
-            return new DriveContainer(driveService);
-        } catch (IOException | GeneralSecurityException e) {
-            logger.error("google login failed " + e);
-        }
-        return null;
-    }
+    //         return new DriveContainer(driveService);
+    //     } catch (IOException | GeneralSecurityException e) {
+    //         logger.error("google login failed " + e);
+    //     }
+    //     return null;
+    // }
 }
