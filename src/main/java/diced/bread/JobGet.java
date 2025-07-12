@@ -1,13 +1,14 @@
 package diced.bread;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -21,14 +22,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.docs.v1.DocsScopes;
-import com.google.api.services.drive.DriveScopes;
-import com.google.auth.oauth2.GoogleCredentials;
-
+import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
-import diced.bread.client.JobFilter.JobTitleFilter;
+import diced.bread.client.JobFilter.TitleContainsFilter;
+import diced.bread.client.JobFilter.TitleDoesNotContainFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
@@ -45,7 +42,6 @@ public class JobGet {
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
 
     private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account.json";
-    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
@@ -71,7 +67,26 @@ public class JobGet {
             .required(false)
             .build();
 
+    private static final Option includeIfContains = Option.builder("in")
+            .longOpt("includeIfContains")
+            .hasArg()
+            .desc("include jobs with words from file")
+            .argName("file name")
+            .required(false)
+            .build();
+
+    private static final Option excludeIfContains = Option.builder("ex")
+            .longOpt("excludeIfContains")
+            .hasArg()
+            .desc("exclude jobs with words from file")
+            .argName("file name")
+            .required(false)
+            .build();
+
     public void run(CommandLine commandLine) {
+        List<JobFilter> filters = buildTitleFilters(commandLine);
+        if (filters == null)
+            return;
 
         if (commandLine.hasOption(old)) {
             old(commandLine);
@@ -79,7 +94,7 @@ public class JobGet {
         }
 
         if (commandLine.hasOption(writeBatch)) {
-            writeBatch(commandLine);
+            writeBatch(commandLine, filters);
             return;
         }
 
@@ -87,7 +102,46 @@ public class JobGet {
             readBatch(commandLine);
             return;
         }
+    }
 
+    private List<JobFilter> buildTitleFilters(CommandLine line) {
+        List<JobFilter> filters = new ArrayList<>();
+
+        if (line.hasOption(excludeIfContains)) {
+            String fileName = line.getOptionValue(excludeIfContains);
+            List<String> words = readWordsFromFile(fileName);
+            if (words == null)
+                return null;
+            filters.add(new TitleContainsFilter(new HashSet<>(words))); // exclude if contains
+        }
+
+        if (line.hasOption(includeIfContains)) {
+            String fileName = line.getOptionValue(includeIfContains);
+            List<String> words = readWordsFromFile(fileName);
+            if (words == null)
+                return null;
+            filters.add(new TitleDoesNotContainFilter(new HashSet<>(words))); // include if contains
+        }
+
+        return filters;
+    }
+
+    // Helper method to read words from a file (one word per line)
+    private List<String> readWordsFromFile(String fileName) {
+        List<String> words = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.isBlank()) {
+                    words.add(line.trim().toLowerCase());
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Failed to read words from file: " + fileName);
+            logger.debug(e);
+            return null;
+        }
+        return words;
     }
 
     private void readBatch(CommandLine commandLine) {
@@ -130,7 +184,7 @@ public class JobGet {
 
         } catch (IOException | GeneralSecurityException e) {
             logger.error("google container service failed " + e);
-        }finally{
+        } finally {
             processes.clear();
         }
 
@@ -178,7 +232,7 @@ public class JobGet {
         }
     }
 
-    private void writeBatch(CommandLine commandLine) {
+    private void writeBatch(CommandLine commandLine, List<JobFilter> filters) {
         logger.info("writeBatch start");
         String file = commandLine.getOptionValue(writeBatch);
         if (file == null) {
@@ -189,9 +243,7 @@ public class JobGet {
         ScrapedLogger s = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
 
         SeekClient client = new SeekClient(s);
-
-        List<String> excludeIfContains = List.of("senior", "manager", "lead", "head", "advisor");
-        client.addFilter(new JobTitleFilter(excludeIfContains, true));
+        filters.forEach(e -> client.addFilter(e));
 
         Map<URI, JobInfo> listing = client.getJobInfo();
         BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
@@ -206,7 +258,10 @@ public class JobGet {
         Options options = new Options();
 
         OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
-        options.addOption(old).addOptionGroup(batchOperations);
+        options.addOption(old)
+                .addOptionGroup(batchOperations)
+                .addOption(includeIfContains)
+                .addOption(excludeIfContains);
 
         CommandLineParser parser = new DefaultParser();
 
@@ -218,12 +273,4 @@ public class JobGet {
         }
     }
 
-    private GoogleCredentials initCredentials() throws IOException, GeneralSecurityException {
-        // Load service account credentials
-        GoogleCredentials credentials = GoogleCredentials.fromStream(
-                new FileInputStream(SERVICE_ACCOUNT_KEY_PATH))
-                .createScoped(Collections.singleton(DocsScopes.DOCUMENTS))
-                .createScoped(Collections.singleton(DriveScopes.DRIVE));
-        return credentials;
-    }
 }
