@@ -55,7 +55,7 @@ public class JobGetter_SeekStore {
 
     private static final String APPLICATION_NAME = "Google Docs API Java Service Account";
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-    private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account.json";
+    private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account_dave.json";
     // private static final String DOCUMENT_ID =
     // "16fm0Fyo_N7TulVRo4q8-SJ_DZQqUzPjtKobnAtyW_iY";
 
@@ -221,6 +221,11 @@ public class JobGetter_SeekStore {
         };
         if(quota.getLimit() <= 0){
             logger.error("quota limit 0 ending process");
+            try {
+                logger.error(quota.toPrettyString());
+            } catch (IOException e) {
+                logger.error(e);
+            }
             return false;
         }
         double percent = quota.getUsage() / quota.getLimit();

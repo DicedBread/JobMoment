@@ -41,7 +41,7 @@ public class JobGet {
     private final String DEFAULT_BATCH_SELECT_FILE = "batch.md";
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
 
-    private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account.json";
+    private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account_dave.json";
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
@@ -50,6 +50,11 @@ public class JobGet {
             .desc("run old system")
             .required(false)
             .build();
+
+    private static final Option itSeek = Option.builder("it")
+        .longOpt("seekIt")
+        .desc("run seek ")
+        .build();
 
     private static final Option writeBatch = Option.builder("wb")
             .longOpt("writeBatch")
@@ -223,9 +228,11 @@ public class JobGet {
     private void old(CommandLine commandLine) {
         try {
             JobGetter_SeekStore jg = new JobGetter_SeekStore();
-            if (!jg.checkStorageQuotaOk())
-                return;
+            
+            boolean storeOk = jg.checkStorageQuotaOk();
             jg.deleteOldFiles();
+            if (!storeOk)
+                return;
             jg.run();
         } catch (IOException | GeneralSecurityException e) {
             logger.error("Failed to login " + e);

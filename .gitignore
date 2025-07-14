@@ -1,5 +1,4 @@
-service-account.json
-service-account_old.json
+service-account*.json
 
 *.pdf
 .vscode
