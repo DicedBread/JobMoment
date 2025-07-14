@@ -6,28 +6,20 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.docs.v1.DocsScopes;
-import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.About.StorageQuota;
-import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 
 import diced.bread.client.JobFilter.JobFilter;
@@ -36,6 +28,7 @@ import diced.bread.client.JobFilter.JobTitleFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
+import diced.bread.google.GoogleOAuth;
 import diced.bread.model.JobInfo;
 import diced.bread.persist.BatchSelectWriter;
 import diced.bread.persist.JobApply;
@@ -150,46 +143,53 @@ public class JobGetter_SeekStore {
     }
 
     public void deleteOldFiles() {
-        long oneWeekMillis = 7L * 24 * 60 * 60 * 1000;
-        long now = System.currentTimeMillis();
-        Date weekAgo = new Date(now - oneWeekMillis);
+        // long oneWeekMillis = 7L * 24 * 60 * 60 * 1000;
+        // long now = System.currentTimeMillis();
+        // Date weekAgo = new Date(now - oneWeekMillis);
 
-        SimpleDateFormat rfc3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
-        rfc3339.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String weekAgoRfc3339 = rfc3339.format(weekAgo);
+        // SimpleDateFormat rfc3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+        // rfc3339.setTimeZone(TimeZone.getTimeZone("UTC"));
+        // String weekAgoRfc3339 = rfc3339.format(weekAgo);
 
-        List<com.google.api.services.drive.model.File> v = drive.getAll();
+        // List<com.google.api.services.drive.model.File> v = drive.getAll();
 
-        var toDel = v.stream().filter(e -> {
-            if (!e.getOwnedByMe())
-                return false;
-            boolean overAWeekAgo = false;
-            if (e.getCreatedTime() != null) {
-                overAWeekAgo = now - e.getCreatedTime().getValue() > oneWeekMillis;
-            }
-            // System.out.println(e.getId() + " " + e.getCreatedTime() + " overAWeekAgo=" +
-            // overAWeekAgo + " " + e.getOwnedByMe());
-            return overAWeekAgo;
-        }).toList();
+        // var toDel = v.stream().filter(e -> {
+        //     if (!e.getOwnedByMe())
+        //         return false;
+        //     boolean overAWeekAgo = false;
+        //     if (e.getCreatedTime() != null) {
+        //         overAWeekAgo = now - e.getCreatedTime().getValue() > oneWeekMillis;
+        //     }
+        //     // System.out.println(e.getId() + " " + e.getCreatedTime() + " overAWeekAgo=" +
+        //     // overAWeekAgo + " " + e.getOwnedByMe());
+        //     return overAWeekAgo;
+        // }).toList();
 
-        logger.info("files found " + v.size() + " deleting " + toDel.size());
-        drive.deleteAll(toDel);
+        // logger.info("files found " + v.size() + " deleting " + toDel.size());
+        // drive.deleteAll(toDel);
     }
 
     public JobGetter_SeekStore() throws IOException, GeneralSecurityException {
-        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        GoogleCredentials credentials = initCredentials();
+        // HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
-        Docs docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-        Drive driveService = new Drive.Builder(new NetHttpTransport(), JSON_FACTORY,
-                new HttpCredentialsAdapter(credentials))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+        try {
+            Credential credentials = GoogleOAuth.authorize();
+            doc = new DocContainer(credentials);
+            drive = new DriveContainer(credentials);
+        } catch (IOException | GeneralSecurityException e) {
+            System.out.println(e);
+        }
 
-        doc = new DocContainer(docService);
-        drive = new DriveContainer(driveService);
+        // Docs docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
+        //         .setApplicationName(APPLICATION_NAME)
+        //         .build();
+        // Drive driveService = new Drive.Builder(new NetHttpTransport(), JSON_FACTORY,
+        //         new HttpCredentialsAdapter(credentials))
+        //         .setApplicationName(APPLICATION_NAME)
+        //         .build();
+
+        // doc = new DocContainer(docService);
+        // drive = new DriveContainer(driveService);
 
         new File(STORE_ROOT_FOLDER).mkdirs();
         store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");

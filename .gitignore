@@ -1,5 +1,6 @@
 service-account*.json
-
+client_secret*.json
+.credentials
 *.pdf
 .vscode
 target

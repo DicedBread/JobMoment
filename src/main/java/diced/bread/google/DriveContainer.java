@@ -13,13 +13,9 @@ import org.apache.logging.log4j.Logger;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 
-import com.google.api.client.googleapis.batch.BatchCallback;
-import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
-import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.docs.v1.DocsScopes;
@@ -30,6 +26,7 @@ import com.google.api.services.drive.model.About.StorageQuota;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 
 public class DriveContainer {
@@ -45,12 +42,21 @@ public class DriveContainer {
         this.driveService = drive;
     }
 
+    @Deprecated
     public DriveContainer(String serviceAccountKeyPath) throws IOException, GeneralSecurityException{
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         GoogleCredentials credentials = initCredentials(serviceAccountKeyPath);
 
         driveService = new Drive.Builder(httpTransport, JSON_FACTORY,
                 new HttpCredentialsAdapter(credentials))
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+    }
+
+    public DriveContainer(Credential credentials) throws IOException, GeneralSecurityException{
+        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        driveService = new Drive.Builder(httpTransport, JSON_FACTORY,
+                credentials)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }
@@ -126,37 +132,41 @@ public class DriveContainer {
      * deletes files provided in list
      */
     public void deleteAll(List<File> files) {
-        if (files.isEmpty())
-            return;
-        BatchRequest batch = driveService.batch();
-        files.forEach(file -> {
-            try {
-                batch.queue(driveService.files().delete(file.getId()).buildHttpRequest(),
-                        Void.class,
-                        GoogleJsonErrorContainer.class,
-                        new BatchCallback<Void, GoogleJsonErrorContainer>() {
-                            @Override
-                            public void onSuccess(Void t, HttpHeaders responseHeaders) throws IOException {
-                                logger.info("deleted id: " + file.getId() + " " + file.getName());
-                            }
 
-                            @Override
-                            public void onFailure(GoogleJsonErrorContainer err, HttpHeaders responseHeaders)
-                                    throws IOException {
-                                logger.error("failed to delete file " + file.getId() + " " + err);
-                            }
-                        });
-            } catch (IOException ex) {
-                logger.error("failed to add id: " + file.getId() + " to queue " + file);
-            }
-        });
-        logger.info("deleting " + files.size() + " files");
-        try {
-            batch.execute();
-            logger.info("deleted " + files.size() + "files");
-        } catch (IOException e) {
-            logger.error("failed to batch delete " + e);
-        }
+        logger.warn("delete does not function");
+        return;
+        
+        // if (files.isEmpty())
+        //     return;
+        // BatchRequest batch = driveService.batch();
+        // files.forEach(file -> {
+        //     try {
+        //         batch.queue(driveService.files().delete(file.getId()).buildHttpRequest(),
+        //                 Void.class,
+        //                 GoogleJsonErrorContainer.class,
+        //                 new BatchCallback<Void, GoogleJsonErrorContainer>() {
+        //                     @Override
+        //                     public void onSuccess(Void t, HttpHeaders responseHeaders) throws IOException {
+        //                         logger.info("deleted id: " + file.getId() + " " + file.getName());
+        //                     }
+
+        //                     @Override
+        //                     public void onFailure(GoogleJsonErrorContainer err, HttpHeaders responseHeaders)
+        //                             throws IOException {
+        //                         logger.error("failed to delete file " + file.getId() + " " + err);
+        //                     }
+        //                 });
+        //     } catch (IOException ex) {
+        //         logger.error("failed to add id: " + file.getId() + " to queue " + file);
+        //     }
+        // });
+        // logger.info("deleting " + files.size() + " files");
+        // try {
+        //     batch.execute();
+        //     logger.info("deleted " + files.size() + "files");
+        // } catch (IOException e) {
+        //     logger.error("failed to batch delete " + e);
+        // }
     }
 
     public StorageQuota getStorageQuota() {
@@ -176,6 +186,13 @@ public class DriveContainer {
                 new FileInputStream(serviceAccountKeyPath))
                 .createScoped(Collections.singleton(DocsScopes.DOCUMENTS))
                 .createScoped(Collections.singleton(DriveScopes.DRIVE));
+        return credentials;
+    }
+
+    private GoogleCredentials initCredentials(AccessToken accessToken) throws IOException, GeneralSecurityException{
+        
+        
+        GoogleCredentials credentials = new GoogleCredentials(accessToken);
         return credentials;
     }
 }
