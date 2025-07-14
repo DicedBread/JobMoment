@@ -10,6 +10,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -54,11 +55,19 @@ public class DocContainer {
         this.docService = doc;
     }
 
+    @Deprecated
     public DocContainer(String serviceAccountKeyPath) throws IOException, GeneralSecurityException{
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         GoogleCredentials credentials = initCredentials(serviceAccountKeyPath);
 
         docService = new Docs.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+    }
+
+    public DocContainer(Credential credential) throws IOException, GeneralSecurityException{
+        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        docService = new Docs.Builder(httpTransport, JSON_FACTORY, credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }

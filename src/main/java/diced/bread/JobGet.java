@@ -22,6 +22,8 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.api.client.auth.oauth2.Credential;
+
 import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
 import diced.bread.client.JobFilter.TitleContainsFilter;
@@ -29,6 +31,7 @@ import diced.bread.client.JobFilter.TitleDoesNotContainFilter;
 import diced.bread.client.SeekClient;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
+import diced.bread.google.GoogleOAuth;
 import diced.bread.model.JobInfo;
 import diced.bread.persist.BatchSelectWriter;
 import diced.bread.persist.JobApply;
@@ -41,8 +44,6 @@ public class JobGet {
     private final String DEFAULT_BATCH_SELECT_FILE = "batch.md";
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
 
-    private static final String SERVICE_ACCOUNT_KEY_PATH = "service-account_dave.json";
-
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
     private static final Option old = Option.builder("o")
@@ -53,7 +54,7 @@ public class JobGet {
 
     private static final Option itSeek = Option.builder("it")
         .longOpt("seekIt")
-        .desc("run seek ")
+        .desc("run seek client for it positions")
         .build();
 
     private static final Option writeBatch = Option.builder("wb")
@@ -178,8 +179,9 @@ public class JobGet {
         logger.info("starting " + listing.keySet().size() + " CL processors");
 
         try {
-            DriveContainer drive = new DriveContainer(SERVICE_ACCOUNT_KEY_PATH);
-            DocContainer doc = new DocContainer(SERVICE_ACCOUNT_KEY_PATH);
+            Credential cred = GoogleOAuth.authorize();
+            DriveContainer drive = new DriveContainer(cred);
+            DocContainer doc = new DocContainer(cred);
 
             listing.forEach((url, jobInfo) -> {
                 CLWriterProcess thread = new CLWriterProcess(url, jobInfo, drive, doc);
@@ -188,7 +190,7 @@ public class JobGet {
             });
 
         } catch (IOException | GeneralSecurityException e) {
-            logger.error("google container service failed " + e);
+            logger.error("google auth failed " + e);
         } finally {
             processes.clear();
         }
@@ -279,5 +281,4 @@ public class JobGet {
             logger.error(e);
         }
     }
-
 }
