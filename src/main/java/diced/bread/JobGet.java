@@ -47,7 +47,7 @@ public class JobGet {
     private final String STORE_ROOT_FOLDER = "store/";
     private final String DEFAULT_BATCH_SELECT_FILE = "batch.md";
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
-    private final int DEFAULT_MAX_CLWriters = 10;
+    private final int DEFAULT_MAX_CL_WRITER = 10;
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
@@ -134,7 +134,7 @@ public class JobGet {
 
         int count = listing.size();
         logger.info("jobs found " + count);
-        int numOfOpp = DEFAULT_MAX_CLWriters;
+        int numOfOpp = DEFAULT_MAX_CL_WRITER;
         if (count > numOfOpp) {
             logger.warn("doing " + numOfOpp + " of " + count + " jobs");
             List<Entry<URI, JobInfo>> list = new ArrayList<>(listing.entrySet()).subList(0, numOfOpp);
