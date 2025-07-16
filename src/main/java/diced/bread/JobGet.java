@@ -51,12 +51,6 @@ public class JobGet {
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
-    private static final Option old = Option.builder("o")
-            .longOpt("old")
-            .desc("run old system")
-            .required(false)
-            .build();
-
     private static final Option itSeek = Option.builder("it")
             .longOpt("seekIt")
             .desc("run seek client for it positions")
@@ -102,11 +96,6 @@ public class JobGet {
         new File(STORE_ROOT_FOLDER).mkdirs();
         ScrapedLogger store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
         Client client = new SeekClient(store);
-
-        if (commandLine.hasOption(old)) {
-            old(commandLine);
-            return;
-        }
 
         if (commandLine.hasOption(itSeek)) {
             filters.forEach(e -> client.addFilter(e));
@@ -207,19 +196,19 @@ public class JobGet {
         store.logScrapeRecord(jobInfo.getScrapeRecord());
     }
 
-    private void old(CommandLine commandLine) {
-        try {
-            JobGetter_SeekStore jg = new JobGetter_SeekStore();
+    // private void old(CommandLine commandLine) {
+    //     try {
+    //         JobGetter_SeekStore jg = new JobGetter_SeekStore();
 
-            boolean storeOk = jg.checkStorageQuotaOk();
-            jg.deleteOldFiles();
-            if (!storeOk)
-                return;
-            jg.run();
-        } catch (IOException | GeneralSecurityException e) {
-            logger.error("Failed to login " + e);
-        }
-    }
+    //         boolean storeOk = jg.checkStorageQuotaOk();
+    //         jg.deleteOldFiles();
+    //         if (!storeOk)
+    //             return;
+    //         jg.run();
+    //     } catch (IOException | GeneralSecurityException e) {
+    //         logger.error("Failed to login " + e);
+    //     }
+    // }
 
     private void writeBatch(CommandLine commandLine, Client client) {
         logger.info("writeBatch start");
@@ -241,7 +230,7 @@ public class JobGet {
         Options options = new Options();
 
         OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
-        options.addOption(old)
+        options
                 .addOptionGroup(batchOperations)
                 .addOption(includeIfContains)
                 .addOption(excludeIfContains)
