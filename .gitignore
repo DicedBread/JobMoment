@@ -1,6 +1,6 @@
-service-account.json
-service-account_old.json
-
+service-account*.json
+client_secret*.json
+.credentials
 *.pdf
 .vscode
 target
@@ -12,3 +12,4 @@ out
 store
 batch.md
 archive
+filters
