@@ -8,9 +8,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -23,7 +25,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.services.drive.model.About.StorageQuota;
 
+import diced.bread.client.Client;
 import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
 import diced.bread.client.JobFilter.TitleContainsFilter;
@@ -43,6 +47,7 @@ public class JobGet {
     private final String STORE_ROOT_FOLDER = "store/";
     private final String DEFAULT_BATCH_SELECT_FILE = "batch.md";
     private final String DEFAULT_SUMMARY_ROOT_FOLDER = "out/";
+    private final int DEFAULT_MAX_CLWriters = 10;
 
     private static final Logger logger = LogManager.getLogger(JobGet.class);
 
@@ -53,9 +58,9 @@ public class JobGet {
             .build();
 
     private static final Option itSeek = Option.builder("it")
-        .longOpt("seekIt")
-        .desc("run seek client for it positions")
-        .build();
+            .longOpt("seekIt")
+            .desc("run seek client for it positions")
+            .build();
 
     private static final Option writeBatch = Option.builder("wb")
             .longOpt("writeBatch")
@@ -94,19 +99,161 @@ public class JobGet {
         if (filters == null)
             return;
 
+        new File(STORE_ROOT_FOLDER).mkdirs();
+        ScrapedLogger store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
+        Client client = new SeekClient(store);
+
         if (commandLine.hasOption(old)) {
             old(commandLine);
             return;
         }
 
+        if (commandLine.hasOption(itSeek)) {
+            filters.forEach(e -> client.addFilter(e));
+            runCoverLetterQuery(client, store);
+        }
+
         if (commandLine.hasOption(writeBatch)) {
-            writeBatch(commandLine, filters);
+            filters.forEach(e -> client.addFilter(e));
+            writeBatch(commandLine, client);
             return;
         }
 
         if (commandLine.hasOption(readBatch)) {
-            readBatch(commandLine);
+            readBatch(commandLine, client, store);
             return;
+        }
+    }
+
+    private void readBatch(CommandLine commandLine, Client client, ScrapedLogger store) {
+        String fileName = commandLine.getOptionValue(readBatch);
+        if (fileName == null) {
+            fileName = DEFAULT_BATCH_SELECT_FILE;
+        }
+        File file = new File(fileName);
+        if (!file.exists()) {
+            logger.error("batch file " + fileName + " does not exist");
+            return;
+        }
+        JobIdInclusionFilter filter = new JobIdInclusionFilter(BatchSelectWriter.parseBatchSelectFile(file));
+        client.addFilter(filter);
+        runCoverLetterQuery(client, store);
+    }
+
+    private void runCoverLetterQuery(Client client, ScrapedLogger store) {
+        Map<URI, JobInfo> listing = client.getJobInfo();
+
+        int count = listing.size();
+        logger.info("jobs found " + count);
+        int numOfOpp = DEFAULT_MAX_CLWriters;
+        if (count > numOfOpp) {
+            logger.warn("doing " + numOfOpp + " of " + count + " jobs");
+            List<Entry<URI, JobInfo>> list = new ArrayList<>(listing.entrySet()).subList(0, numOfOpp);
+            Map<URI, JobInfo> limitedListing = new HashMap<>();
+            for (Entry<URI, JobInfo> entry : list) {
+                limitedListing.put(entry.getKey(), entry.getValue());
+            }
+            listing = limitedListing;
+        }
+
+        List<CLWriterProcess> processes = new ArrayList<>();
+        logger.info("starting " + listing.keySet().size() + " CL processors");
+
+        try {
+            Credential cred = GoogleOAuth.authorize();
+            DriveContainer drive = new DriveContainer(cred);
+            DocContainer doc = new DocContainer(cred);
+
+            listing.forEach((url, jobInfo) -> {
+                CLWriterProcess thread = new CLWriterProcess(url, jobInfo, drive, doc);
+                processes.add(thread);
+                thread.start();
+            });
+
+        } catch (IOException | GeneralSecurityException e) {
+            logger.error("google auth failed " + e);
+            processes.clear();
+        }
+
+        if (!processes.isEmpty()) {
+            SummaryWriter summary = new SummaryWriter(DEFAULT_SUMMARY_ROOT_FOLDER);
+            for (CLWriterProcess process : processes) {
+                try {
+                    process.join();
+                    if (process.getDocId() != null) {
+                        collect(summary, process.getJobInfo(), process.getPdfData(), store);
+                    }
+                } catch (InterruptedException ex) {
+                    logger.error(ex);
+                }
+            }
+        }
+    }
+
+    private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData, ScrapedLogger store) {
+        if (jobInfo == null || pdfData == null) {
+            logger.error("something null " + jobInfo + " " + pdfData);
+            return;
+        }
+        String jobTitleForm = jobInfo.getJobTitle().replaceAll("\\W+", "");
+        String companyNameForm = jobInfo.getCompanyName().replaceAll("\\W+", "");
+        String fileName = jobTitleForm + "_" + companyNameForm + ".pdf";
+
+        JobApply job = new JobApply(jobInfo.getListingUrl(),
+                jobInfo.getCompanyName(), false);
+
+        summary.appendJob(job);
+        summary.appendFile(pdfData, fileName);
+        store.logScrapeRecord(jobInfo.getScrapeRecord());
+    }
+
+    private void old(CommandLine commandLine) {
+        try {
+            JobGetter_SeekStore jg = new JobGetter_SeekStore();
+
+            boolean storeOk = jg.checkStorageQuotaOk();
+            jg.deleteOldFiles();
+            if (!storeOk)
+                return;
+            jg.run();
+        } catch (IOException | GeneralSecurityException e) {
+            logger.error("Failed to login " + e);
+        }
+    }
+
+    private void writeBatch(CommandLine commandLine, Client client) {
+        logger.info("writeBatch start");
+        String file = commandLine.getOptionValue(writeBatch);
+        if (file == null) {
+            file = DEFAULT_BATCH_SELECT_FILE;
+        }
+
+        Map<URI, JobInfo> listing = client.getJobInfo();
+        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
+        logger.info("writing " + listing.size() + " listings to batch");
+        listing.forEach((k, v) -> {
+            batchSelectWriter.appendJob(v);
+        });
+        logger.info("writeBatch end");
+    }
+
+    public static void main(String[] args) {
+        Options options = new Options();
+
+        OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
+        options.addOption(old)
+                .addOptionGroup(batchOperations)
+                .addOption(includeIfContains)
+                .addOption(excludeIfContains)
+                .addOption(itSeek);
+
+        CommandLineParser parser = new DefaultParser();
+
+        try {
+            CommandLine commandLine = parser.parse(options, args);
+            new JobGet().run(commandLine);
+        } catch (ParseException e) {
+            logger.error(e);
         }
     }
 
@@ -150,135 +297,34 @@ public class JobGet {
         return words;
     }
 
-    private void readBatch(CommandLine commandLine) {
-        String fileName = commandLine.getOptionValue(readBatch);
-        if (fileName == null) {
-            fileName = DEFAULT_BATCH_SELECT_FILE;
-        }
-        File file = new File(fileName);
-        if (!file.exists()) {
-            logger.error("batch file " + fileName + " does not exist");
-            return;
-        }
-
-        new File(STORE_ROOT_FOLDER).mkdirs();
-        ScrapedLogger s = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
-        SeekClient client = new SeekClient(s);
-        JobIdInclusionFilter filter = new JobIdInclusionFilter(BatchSelectWriter.parseBatchSelectFile(file));
-        client.addFilter(filter);
-        Map<URI, JobInfo> listing = client.getJobInfo();
-
-        int count = listing.size();
-        logger.info("jobs found " + count);
-        if (count > 20) {
-            logger.warn(count + " listings stopping process");
-            return;
-        }
-
-        List<CLWriterProcess> processes = new ArrayList<>();
-        logger.info("starting " + listing.keySet().size() + " CL processors");
-
+    public boolean checkStorageQuotaOk() {
         try {
             Credential cred = GoogleOAuth.authorize();
             DriveContainer drive = new DriveContainer(cred);
-            DocContainer doc = new DocContainer(cred);
 
-            listing.forEach((url, jobInfo) -> {
-                CLWriterProcess thread = new CLWriterProcess(url, jobInfo, drive, doc);
-                processes.add(thread);
-                thread.start();
-            });
-
-        } catch (IOException | GeneralSecurityException e) {
-            logger.error("google auth failed " + e);
-        } finally {
-            processes.clear();
-        }
-
-        if (!processes.isEmpty()) {
-            SummaryWriter summary = new SummaryWriter(DEFAULT_SUMMARY_ROOT_FOLDER);
-            for (CLWriterProcess process : processes) {
-                try {
-                    process.join();
-                    if (process.getDocId() != null) {
-                        collect(summary, process.getJobInfo(), process.getPdfData(), s);
-                    }
-                } catch (InterruptedException ex) {
-                    logger.error(ex);
-                }
+            StorageQuota quota = drive.getStorageQuota();
+            if (quota == null) {
+                logger.error("no quota found ending process");
+                return false;
             }
-        }
-    }
-
-    private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData, ScrapedLogger store) {
-        if (jobInfo == null || pdfData == null) {
-            logger.error("something null " + jobInfo + " " + pdfData);
-            return;
-        }
-        String jobTitleForm = jobInfo.getJobTitle().replaceAll("\\W+", "");
-        String companyNameForm = jobInfo.getCompanyName().replaceAll("\\W+", "");
-        String fileName = jobTitleForm + "_" + companyNameForm + ".pdf";
-
-        JobApply job = new JobApply(jobInfo.getListingUrl(),
-                jobInfo.getCompanyName(), false);
-
-        summary.appendJob(job);
-        summary.appendFile(pdfData, fileName);
-        store.logScrapeRecord(jobInfo.getScrapeRecord());
-    }
-
-    private void old(CommandLine commandLine) {
-        try {
-            JobGetter_SeekStore jg = new JobGetter_SeekStore();
-            
-            boolean storeOk = jg.checkStorageQuotaOk();
-            jg.deleteOldFiles();
-            if (!storeOk)
-                return;
-            jg.run();
+            ;
+            if (quota.getLimit() <= 0) {
+                logger.error("quota limit 0 ending process");
+                try {
+                    logger.error(quota.toPrettyString());
+                } catch (IOException e) {
+                    logger.error(e);
+                }
+                return false;
+            }
+            double percent = quota.getUsage() / quota.getLimit();
+            logger.info("quota used " + (percent * 100) + "%");
+            logger.info("quota used " + quota.getUsage() + " of " + quota.getLimit());
+            return true;
         } catch (IOException | GeneralSecurityException e) {
-            logger.error("Failed to login " + e);
-        }
-    }
-
-    private void writeBatch(CommandLine commandLine, List<JobFilter> filters) {
-        logger.info("writeBatch start");
-        String file = commandLine.getOptionValue(writeBatch);
-        if (file == null) {
-            file = DEFAULT_BATCH_SELECT_FILE;
+            logger.error("google login failed");
+            return false;
         }
 
-        new File(STORE_ROOT_FOLDER).mkdirs();
-        ScrapedLogger s = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
-
-        SeekClient client = new SeekClient(s);
-        filters.forEach(e -> client.addFilter(e));
-
-        Map<URI, JobInfo> listing = client.getJobInfo();
-        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
-        logger.info("writing " + listing.size() + " listings to batch");
-        listing.forEach((k, v) -> {
-            batchSelectWriter.appendJob(v);
-        });
-        logger.info("writeBatch end");
-    }
-
-    public static void main(String[] args) {
-        Options options = new Options();
-
-        OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
-        options.addOption(old)
-                .addOptionGroup(batchOperations)
-                .addOption(includeIfContains)
-                .addOption(excludeIfContains);
-
-        CommandLineParser parser = new DefaultParser();
-
-        try {
-            CommandLine commandLine = parser.parse(options, args);
-            new JobGet().run(commandLine);
-        } catch (ParseException e) {
-            logger.error(e);
-        }
     }
 }

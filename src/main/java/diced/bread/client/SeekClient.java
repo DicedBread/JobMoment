@@ -48,6 +48,7 @@ public class SeekClient implements Client {
                 + "&classification=6281&sortmode=ListedDate&workarrangement=2,1,3&pageSize=" + pageSize;
     }
 
+    @Override
     public void addFilter(JobFilter jobFilter) {
         filters.add(jobFilter);
     }
