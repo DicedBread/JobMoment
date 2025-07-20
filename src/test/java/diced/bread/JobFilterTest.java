@@ -26,7 +26,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer testWord",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertTrue("should exclude as words present", filter.shouldExclude(job));
     }
@@ -42,7 +42,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertFalse("should not exclude as words not present", filter.shouldExclude(job));
     }
@@ -57,7 +57,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer TestWord",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertFalse("Should not exclude", filter.shouldExclude(job));
     }
@@ -73,7 +73,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertTrue("Should exclude", filter.shouldExclude(job));
     }
@@ -90,7 +90,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer testWord",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertTrue("should exclude as words present", filter.shouldExclude(job));
     }
@@ -107,7 +107,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertFalse("should not exclude as words not present", filter.shouldExclude(job));
     }
@@ -122,7 +122,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer TestWord",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertFalse("Should not exclude", filter.shouldExclude(job));
     }
@@ -137,7 +137,7 @@ public class JobFilterTest {
                 "Example Company",
                 "Software Engineer",
                 true,
-                new ScrapeRecord("seek", "1", new Date())
+                new ScrapeRecord("seek", "1", new Date()), null
         );
         assertTrue("Should exclude", filter.shouldExclude(job));
     }

@@ -197,17 +197,17 @@ public class JobGet {
     }
 
     // private void old(CommandLine commandLine) {
-    //     try {
-    //         JobGetter_SeekStore jg = new JobGetter_SeekStore();
+    // try {
+    // JobGetter_SeekStore jg = new JobGetter_SeekStore();
 
-    //         boolean storeOk = jg.checkStorageQuotaOk();
-    //         jg.deleteOldFiles();
-    //         if (!storeOk)
-    //             return;
-    //         jg.run();
-    //     } catch (IOException | GeneralSecurityException e) {
-    //         logger.error("Failed to login " + e);
-    //     }
+    // boolean storeOk = jg.checkStorageQuotaOk();
+    // jg.deleteOldFiles();
+    // if (!storeOk)
+    // return;
+    // jg.run();
+    // } catch (IOException | GeneralSecurityException e) {
+    // logger.error("Failed to login " + e);
+    // }
     // }
 
     private void writeBatch(CommandLine commandLine, Client client) {
@@ -217,10 +217,20 @@ public class JobGet {
             file = DEFAULT_BATCH_SELECT_FILE;
         }
 
-        Map<URI, JobInfo> listing = client.getJobInfo();
+        Map<URI, JobInfo> listings = client.getJobInfo();
         BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
-        logger.info("writing " + listing.size() + " listings to batch");
-        listing.forEach((k, v) -> {
+        logger.info("writing " + listings.size() + " listings to batch");
+        ArrayList<JobInfo> list = new ArrayList<>(listings.values());
+        list.sort((b, a) -> {
+            if (a.getListingDate() == null && b.getListingDate() == null)
+                return 0;
+            if (a.getListingDate() == null)
+                return 1;
+            if (b.getListingDate() == null)
+                return -1;
+            return a.getListingDate().compareTo(b.getListingDate());
+        });
+        list.forEach(v -> {
             batchSelectWriter.appendJob(v);
         });
         logger.info("writeBatch end");

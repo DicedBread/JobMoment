@@ -1,6 +1,7 @@
 package diced.bread.model;
 
 import java.net.URI;
+import java.util.Date;
 
 public class JobInfo {
     private final URI listingUrl;
@@ -8,13 +9,15 @@ public class JobInfo {
     private final String jobTitle;
     private final boolean isSoftware;
     private final ScrapeRecord scrapeRecord;
+    private final Date listingDate;
     
-    public JobInfo(URI listingUrl, String companyName, String jobTitle, boolean isSoftware, ScrapeRecord scrapeRecord) {
+    public JobInfo(URI listingUrl, String companyName, String jobTitle, boolean isSoftware, ScrapeRecord scrapeRecord, Date listingDate) {
         this.listingUrl = listingUrl;
         this.companyName = companyName;
         this.jobTitle = jobTitle;
         this.isSoftware = isSoftware;
         this.scrapeRecord = scrapeRecord;
+        this.listingDate = listingDate;
     }  
 
     public URI getListingUrl() {
@@ -35,5 +38,9 @@ public class JobInfo {
 
     public ScrapeRecord getScrapeRecord() {
         return scrapeRecord;
+    }
+
+    public Date getListingDate() {
+        return listingDate;
     }
 }

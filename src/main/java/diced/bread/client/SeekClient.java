@@ -75,6 +75,7 @@ public class SeekClient implements Client {
             String positionTitle = listing.title;
             boolean isSoftware = false;
             String subclass = listing.classifications.get(0).subclassification.id;
+            Date date = listing.listingDate;
             isSoftware = subclass.equals("6290") || subclass.equals("6287"); // software subclasses
 
             try {
@@ -83,7 +84,9 @@ public class SeekClient implements Client {
                         companyName,
                         positionTitle,
                         isSoftware,
-                        new ScrapeRecord(SeekClient.class.getName(), id, new Date()));
+                        new ScrapeRecord(SeekClient.class.getName(), id, new Date()),
+                        date
+                    );
 
                 if (filterOut(ji, id))
                     return;
