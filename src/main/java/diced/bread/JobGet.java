@@ -32,7 +32,8 @@ import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
 import diced.bread.client.JobFilter.TitleContainsFilter;
 import diced.bread.client.JobFilter.TitleDoesNotContainFilter;
-import diced.bread.client.SeekClient;
+import diced.bread.client.SeekClientIt;
+import diced.bread.client.SeekClientRetail;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
 import diced.bread.google.GoogleOAuth;
@@ -54,6 +55,11 @@ public class JobGet {
     private static final Option itSeek = Option.builder("it")
             .longOpt("seekIt")
             .desc("run seek client for it positions")
+            .build();
+    
+    private static final Option retailSeek = Option.builder("re")
+            .longOpt("seekRetail")
+            .desc("run seek client for retail positions")
             .build();
 
     private static final Option writeBatch = Option.builder("wb")
@@ -95,11 +101,20 @@ public class JobGet {
 
         new File(STORE_ROOT_FOLDER).mkdirs();
         ScrapedLogger store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
-        Client client = new SeekClient(store);
+        Client client = getClient(commandLine, store);
 
-        if (commandLine.hasOption(itSeek)) {
+        // if (commandLine.hasOption(itSeek)) {
+        //     filters.forEach(e -> client.addFilter(e));
+        //     runCoverLetterQuery(client, store);
+        // }
+
+        if(!commandLine.hasOption(writeBatch) && !commandLine.hasOption(readBatch)){
             filters.forEach(e -> client.addFilter(e));
-            runCoverLetterQuery(client, store);
+            if(commandLine.hasOption(itSeek)){
+                runCoverLetterQuery(client, store);
+            }else{
+                logger.warn("new cl writer needed");
+            }
         }
 
         if (commandLine.hasOption(writeBatch)) {
@@ -112,6 +127,18 @@ public class JobGet {
             readBatch(commandLine, client, store);
             return;
         }
+    }
+
+    private Client getClient(CommandLine commandLine, ScrapedLogger store){
+        if(commandLine.hasOption(itSeek)){
+            return new SeekClientIt(store); 
+        }
+
+        if(commandLine.hasOption(retailSeek)){
+            return new SeekClientRetail(store);
+        }
+
+        return null;
     }
 
     private void readBatch(CommandLine commandLine, Client client, ScrapedLogger store) {
@@ -240,11 +267,14 @@ public class JobGet {
         Options options = new Options();
 
         OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
+        OptionGroup jobTypeGroup = new OptionGroup().addOption(itSeek).addOption(retailSeek);
+        jobTypeGroup.isRequired();
+
         options
                 .addOptionGroup(batchOperations)
+                .addOptionGroup(jobTypeGroup)
                 .addOption(includeIfContains)
-                .addOption(excludeIfContains)
-                .addOption(itSeek);
+                .addOption(excludeIfContains);
 
         CommandLineParser parser = new DefaultParser();
 
