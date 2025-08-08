@@ -56,7 +56,7 @@ public class JobGet {
             .longOpt("seekIt")
             .desc("run seek client for it positions")
             .build();
-    
+
     private static final Option retailSeek = Option.builder("re")
             .longOpt("seekRetail")
             .desc("run seek client for retail positions")
@@ -104,15 +104,15 @@ public class JobGet {
         Client client = getClient(commandLine, store);
 
         // if (commandLine.hasOption(itSeek)) {
-        //     filters.forEach(e -> client.addFilter(e));
-        //     runCoverLetterQuery(client, store);
+        // filters.forEach(e -> client.addFilter(e));
+        // runCoverLetterQuery(client, store);
         // }
 
-        if(!commandLine.hasOption(writeBatch) && !commandLine.hasOption(readBatch)){
+        if (!commandLine.hasOption(writeBatch) && !commandLine.hasOption(readBatch)) {
             filters.forEach(e -> client.addFilter(e));
-            if(commandLine.hasOption(itSeek)){
+            if (commandLine.hasOption(itSeek)) {
                 runCoverLetterQuery(client, store);
-            }else{
+            } else {
                 logger.warn("new cl writer needed");
             }
         }
@@ -129,12 +129,12 @@ public class JobGet {
         }
     }
 
-    private Client getClient(CommandLine commandLine, ScrapedLogger store){
-        if(commandLine.hasOption(itSeek)){
-            return new SeekClientIt(store); 
+    private Client getClient(CommandLine commandLine, ScrapedLogger store) {
+        if (commandLine.hasOption(itSeek)) {
+            return new SeekClientIt(store);
         }
 
-        if(commandLine.hasOption(retailSeek)){
+        if (commandLine.hasOption(retailSeek)) {
             return new SeekClientRetail(store);
         }
 
@@ -191,19 +191,32 @@ public class JobGet {
             processes.clear();
         }
 
-        if (!processes.isEmpty()) {
+        processes.forEach(e -> {
+            try {
+                e.join();
+            } catch (InterruptedException e1) {
+                logger.error(e1);
+            }
+        });
+
+        final List<CLWriterProcess> filteredProcesses = processes.stream()
+                .filter(e -> e.getDocId() != null)
+                .toList();
+
+        if (filteredProcesses.size() != processes.size()) {
+            int numProFailed = processes.size() - filteredProcesses.size();
+            logger.warn(numProFailed + " processes of " + processes.size() + " failed");
+        }
+
+        if (!filteredProcesses.isEmpty()) {
             SummaryWriter summary = new SummaryWriter(DEFAULT_SUMMARY_ROOT_FOLDER);
-            for (CLWriterProcess process : processes) {
-                try {
-                    process.join();
-                    if (process.getDocId() != null) {
-                        collect(summary, process.getJobInfo(), process.getPdfData(), store);
-                    }
-                } catch (InterruptedException ex) {
-                    logger.error(ex);
+            for (CLWriterProcess process : filteredProcesses) {
+                if (process.getDocId() != null) {
+                    collect(summary, process.getJobInfo(), process.getPdfData(), store);
                 }
             }
         }
+
     }
 
     private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData, ScrapedLogger store) {

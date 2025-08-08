@@ -23,7 +23,7 @@ public class SummaryWriter {
     public SummaryWriter(String outFolderDir) {
         this.outFolderDir = outFolderDir;
         Date date = new Date();
-        SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss");
+        SimpleDateFormat formatter = new SimpleDateFormat("yy-MM-dd_HH-mm-ss");
         String formattedDate = formatter.format(date);
         String dir = "out/" + formattedDate + "/";
         pdfDir = dir + "pdf/";
