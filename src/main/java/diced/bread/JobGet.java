@@ -94,6 +94,14 @@ public class JobGet {
             .required(false)
             .build();
 
+    private static final Option compileSummarys = Option.builder("comp")
+            .longOpt("compileSummarys")
+            .hasArg()
+            .desc("compiles summarys into single file list")
+            .argName("folder")
+            .required()
+            .build();
+
     public void run(CommandLine commandLine) {
         List<JobFilter> filters = buildTitleFilters(commandLine);
         if (filters == null)
@@ -127,8 +135,53 @@ public class JobGet {
             readBatch(commandLine, client, store);
             return;
         }
+
+        if(commandLine.hasOption(compileSummarys)){
+            compileSummarys(commandLine);
+            return;
+        }
     }
 
+    private void compileSummarys(CommandLine commandLine){
+        String folder = commandLine.getOptionValue(compileSummarys);
+        File dir = new File(folder);
+
+        if (!dir.exists() || !dir.isDirectory()) {
+            logger.error("Folder does not exist or is not a directory: " + folder);
+            return;
+        }
+
+        File[] subFolders = dir.listFiles(File::isDirectory);
+        if (subFolders == null) {
+            logger.error("Failed to list subfolders in: " + folder);
+            return;
+        }
+
+        java.text.SimpleDateFormat inputFormat = new java.text.SimpleDateFormat("dd-MM-yyyy_HH-mm-ss");
+        java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("yy-MM-dd_HH-mm-ss");
+
+        for (File subFolder : subFolders) {
+            String folderName = subFolder.getName();
+            try {
+                java.util.Date date = inputFormat.parse(folderName);
+                String newFolderName = outputFormat.format(date);
+                File newFolder = new File(subFolder.getParentFile(), newFolderName);
+                if (!subFolder.getName().equals(newFolderName)) {
+                    boolean renamed = subFolder.renameTo(newFolder);
+                    if (renamed) {
+                        logger.info("Renamed folder: " + folderName + " -> " + newFolderName);
+                    } else {
+                        logger.warn("Failed to rename folder: " + folderName);
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Skipping folder with invalid date name: " + folderName);
+            }
+        }
+    }
+
+
+    
     private Client getClient(CommandLine commandLine, ScrapedLogger store) {
         if (commandLine.hasOption(itSeek)) {
             return new SeekClientIt(store);
@@ -236,19 +289,6 @@ public class JobGet {
         store.logScrapeRecord(jobInfo.getScrapeRecord());
     }
 
-    // private void old(CommandLine commandLine) {
-    // try {
-    // JobGetter_SeekStore jg = new JobGetter_SeekStore();
-
-    // boolean storeOk = jg.checkStorageQuotaOk();
-    // jg.deleteOldFiles();
-    // if (!storeOk)
-    // return;
-    // jg.run();
-    // } catch (IOException | GeneralSecurityException e) {
-    // logger.error("Failed to login " + e);
-    // }
-    // }
 
     private void writeBatch(CommandLine commandLine, Client client) {
         logger.info("writeBatch start");
@@ -286,6 +326,7 @@ public class JobGet {
         options
                 .addOptionGroup(batchOperations)
                 .addOptionGroup(jobTypeGroup)
+                .addOption(compileSummarys)
                 .addOption(includeIfContains)
                 .addOption(excludeIfContains);
 
