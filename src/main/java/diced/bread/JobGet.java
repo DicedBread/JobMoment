@@ -4,10 +4,13 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -136,15 +139,17 @@ public class JobGet {
             return;
         }
 
-        if(commandLine.hasOption(compileSummarys)){
+        if (commandLine.hasOption(compileSummarys)) {
             compileSummarys(commandLine);
             return;
         }
     }
 
-    private void compileSummarys(CommandLine commandLine){
+    private void compileSummarys(CommandLine commandLine) {
         String folder = commandLine.getOptionValue(compileSummarys);
         File dir = new File(folder);
+        String outFileName = "complied_summary.md";
+        File outFile = new File(outFileName);
 
         if (!dir.exists() || !dir.isDirectory()) {
             logger.error("Folder does not exist or is not a directory: " + folder);
@@ -157,31 +162,57 @@ public class JobGet {
             return;
         }
 
-        java.text.SimpleDateFormat inputFormat = new java.text.SimpleDateFormat("dd-MM-yyyy_HH-mm-ss");
-        java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("yy-MM-dd_HH-mm-ss");
+        SimpleDateFormat inputFormat = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss");
+        HashMap<Date, String> summaries = new HashMap<>();
+        List<Date> dates = new ArrayList<>();
 
         for (File subFolder : subFolders) {
             String folderName = subFolder.getName();
             try {
-                java.util.Date date = inputFormat.parse(folderName);
-                String newFolderName = outputFormat.format(date);
-                File newFolder = new File(subFolder.getParentFile(), newFolderName);
-                if (!subFolder.getName().equals(newFolderName)) {
-                    boolean renamed = subFolder.renameTo(newFolder);
-                    if (renamed) {
-                        logger.info("Renamed folder: " + folderName + " -> " + newFolderName);
-                    } else {
-                        logger.warn("Failed to rename folder: " + folderName);
+                Date date = inputFormat.parse(folderName);
+
+                File listFile = new File(subFolder, "list.md");
+                if (!listFile.exists()) {
+                    logger.warn("No 'list' file found in folder: " + folderName);
+                    continue;
+                }
+
+                StringBuilder content = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new FileReader(listFile))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        content.append(line).append(System.lineSeparator());
                     }
                 }
+                dates.add(date);
+                summaries.put(date, content.toString());
             } catch (Exception e) {
                 logger.warn("Skipping folder with invalid date name: " + folderName);
             }
         }
+
+        dates.sort(Date::compareTo);
+
+        try (FileWriter writer = new FileWriter(outFile)) {
+            for (Date date : dates) {
+                SimpleDateFormat formatter = new SimpleDateFormat("yy-MM-dd_HH-mm-ss");
+                String formattedDate = formatter.format(date);
+                writer.write(formattedDate + "\n");
+                String summary = summaries.get(date);
+                if (summary != null) {
+                    writer.write(summary);
+                    writer.write(System.lineSeparator());
+                }
+            }
+            logger.info("Wrote compiled summary to " + outFile.getAbsolutePath());
+        } catch (IOException e) {
+            logger.error("Failed to write compiled summary file", e);
+        }
+
+        // summaries now contains Date -> contents of 'list' file for each valid folder
+        // process the summaries as needed
     }
 
-
-    
     private Client getClient(CommandLine commandLine, ScrapedLogger store) {
         if (commandLine.hasOption(itSeek)) {
             return new SeekClientIt(store);
@@ -288,7 +319,6 @@ public class JobGet {
         summary.appendFile(pdfData, fileName);
         store.logScrapeRecord(jobInfo.getScrapeRecord());
     }
-
 
     private void writeBatch(CommandLine commandLine, Client client) {
         logger.info("writeBatch start");
