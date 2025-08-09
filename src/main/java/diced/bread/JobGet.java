@@ -102,7 +102,7 @@ public class JobGet {
             .hasArg()
             .desc("compiles summarys into single file list")
             .argName("folder")
-            .required()
+            .required(false)
             .build();
 
     public void run(CommandLine commandLine) {
