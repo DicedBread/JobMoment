@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,9 +19,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
 import diced.bread.client.JobFilter.JobFilter;
+import diced.bread.client.prospledata.Opportunity;
 import diced.bread.client.prospledata.Root;
-import diced.bread.client.seekdata.Datum;
 import diced.bread.model.JobInfo;
+import diced.bread.model.ScrapeRecord;
 import diced.bread.persist.ScrapedLogger;
 
 public class ProspleClient implements Client {
@@ -40,9 +42,72 @@ public class ProspleClient implements Client {
     public Map<URI, JobInfo> getJobInfo() {
         int count = getJobCount();
 
-        Map<String, Datum> rawData = new HashMap<>();
-        
-        
+        Map<String, Opportunity> rawData = queryListings(count);
+
+        HashMap<URI, JobInfo> out = new HashMap<>();
+
+        rawData.forEach((id, listing) -> {
+            String listingUrl = "https://www.seek.co.nz/job/" + id;
+            String companyName = listing.parentEmployer.title;
+            String positionTitle = listing.title;
+            boolean isSoftware = true;
+            // String subclass = listing.classifications.get(0).subclassification.id;
+            Date date = listing.applicationsCloseDate;
+            // isSoftware = subclass.equals("6290") || subclass.equals("6287"); // software
+            // subclasses
+
+            try {
+                JobInfo ji = new JobInfo(
+                        new URI(listingUrl),
+                        companyName,
+                        positionTitle,
+                        isSoftware,
+                        new ScrapeRecord(PROVIDER_NAME, id, new Date()),
+                        date);
+
+                if (filterOut(ji, id))
+                    return;
+
+                out.put(new URI(listingUrl), ji);
+            } catch (URISyntaxException e) {
+                logger.error(listingUrl + " invalid uri" + e);
+            }
+        });
+
+        return out;
+
+    }
+
+    private Map<String, Opportunity> queryListings(int count) {
+        Map<String, Opportunity> listings = new HashMap<>();
+
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(new URI(getLink(0, count)))
+                    .header("Content-Type", "application/json")
+                    .GET()
+                    .build();
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                Gson gson = new Gson();
+                Root root = gson.fromJson(response.body(), Root.class);
+
+                for (Opportunity datum : root.data.opportunitiesSearch.opportunitiesSortData) {
+                    listings.put(datum.id, datum);
+                }
+
+                logger.info("Fetched {} listings", listings.size());
+            } else {
+                logger.error("Failed to fetch listings. Status code: " + response.statusCode());
+            }
+        } catch (JsonSyntaxException | IOException | InterruptedException | URISyntaxException e) {
+            logger.error("Error fetching listings", e);
+        }
+
+        return listings;
     }
 
     @Override
@@ -115,4 +180,28 @@ public class ProspleClient implements Client {
         return url;
     }
 
+    /***
+     * determines if the job should be filtered from the listings
+     * 
+     * @param jobInfo
+     * @param id
+     * @return true if job should be excluded from result otherwise false
+     */
+    private boolean filterOut(JobInfo jobInfo, String id) {
+        boolean alreadyMade = scrapeStore.existsFromId(PROVIDER_NAME, id);
+        if (alreadyMade)
+            return true;
+
+        for (JobFilter f : filters) {
+            boolean filterEval = f.shouldExclude(jobInfo);
+            logger.debug("val: " + filterEval + " " + jobInfo.getJobTitle());
+            if (filterEval) {
+                logger.debug("excluded " + jobInfo.getJobTitle());
+                return true;
+            }
+        }
+        logger.debug("included " + jobInfo.getJobTitle());
+
+        return false;
+    }
 }
