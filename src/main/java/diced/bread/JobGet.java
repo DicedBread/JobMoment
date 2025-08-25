@@ -4,10 +4,13 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +35,8 @@ import diced.bread.client.JobFilter.JobFilter;
 import diced.bread.client.JobFilter.JobIdInclusionFilter;
 import diced.bread.client.JobFilter.TitleContainsFilter;
 import diced.bread.client.JobFilter.TitleDoesNotContainFilter;
-import diced.bread.client.SeekClient;
+import diced.bread.client.SeekClientIt;
+import diced.bread.client.SeekClientRetail;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
 import diced.bread.google.GoogleOAuth;
@@ -54,6 +58,11 @@ public class JobGet {
     private static final Option itSeek = Option.builder("it")
             .longOpt("seekIt")
             .desc("run seek client for it positions")
+            .build();
+
+    private static final Option retailSeek = Option.builder("re")
+            .longOpt("seekRetail")
+            .desc("run seek client for retail positions")
             .build();
 
     private static final Option writeBatch = Option.builder("wb")
@@ -88,6 +97,14 @@ public class JobGet {
             .required(false)
             .build();
 
+    private static final Option compileSummarys = Option.builder("comp")
+            .longOpt("compileSummarys")
+            .hasArg()
+            .desc("compiles summarys into single file list")
+            .argName("folder")
+            .required(false)
+            .build();
+
     public void run(CommandLine commandLine) {
         List<JobFilter> filters = buildTitleFilters(commandLine);
         if (filters == null)
@@ -95,11 +112,20 @@ public class JobGet {
 
         new File(STORE_ROOT_FOLDER).mkdirs();
         ScrapedLogger store = new ScrapedLogger(STORE_ROOT_FOLDER + "scrapped.log");
-        Client client = new SeekClient(store);
+        Client client = getClient(commandLine, store);
 
-        if (commandLine.hasOption(itSeek)) {
+        // if (commandLine.hasOption(itSeek)) {
+        // filters.forEach(e -> client.addFilter(e));
+        // runCoverLetterQuery(client, store);
+        // }
+
+        if (!commandLine.hasOption(writeBatch) && !commandLine.hasOption(readBatch)) {
             filters.forEach(e -> client.addFilter(e));
-            runCoverLetterQuery(client, store);
+            if (commandLine.hasOption(itSeek)) {
+                runCoverLetterQuery(client, store);
+            } else {
+                logger.warn("new cl writer needed");
+            }
         }
 
         if (commandLine.hasOption(writeBatch)) {
@@ -112,6 +138,91 @@ public class JobGet {
             readBatch(commandLine, client, store);
             return;
         }
+
+        if (commandLine.hasOption(compileSummarys)) {
+            compileSummarys(commandLine);
+            return;
+        }
+    }
+
+    private void compileSummarys(CommandLine commandLine) {
+        String folder = commandLine.getOptionValue(compileSummarys);
+        File dir = new File(folder);
+        String outFileName = "complied_summary.md";
+        File outFile = new File(outFileName);
+
+        if (!dir.exists() || !dir.isDirectory()) {
+            logger.error("Folder does not exist or is not a directory: " + folder);
+            return;
+        }
+
+        File[] subFolders = dir.listFiles(File::isDirectory);
+        if (subFolders == null) {
+            logger.error("Failed to list subfolders in: " + folder);
+            return;
+        }
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss");
+        HashMap<Date, String> summaries = new HashMap<>();
+        List<Date> dates = new ArrayList<>();
+
+        for (File subFolder : subFolders) {
+            String folderName = subFolder.getName();
+            try {
+                Date date = inputFormat.parse(folderName);
+
+                File listFile = new File(subFolder, "list.md");
+                if (!listFile.exists()) {
+                    logger.warn("No 'list' file found in folder: " + folderName);
+                    continue;
+                }
+
+                StringBuilder content = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new FileReader(listFile))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        content.append(line).append(System.lineSeparator());
+                    }
+                }
+                dates.add(date);
+                summaries.put(date, content.toString());
+            } catch (Exception e) {
+                logger.warn("Skipping folder with invalid date name: " + folderName);
+            }
+        }
+
+        dates.sort(Date::compareTo);
+
+        try (FileWriter writer = new FileWriter(outFile)) {
+            for (Date date : dates) {
+                SimpleDateFormat formatter = new SimpleDateFormat("yy-MM-dd_HH-mm-ss");
+                String formattedDate = formatter.format(date);
+                writer.write(formattedDate + "\n");
+                String summary = summaries.get(date);
+                if (summary != null) {
+                    writer.write(summary);
+                    writer.write(System.lineSeparator());
+                }
+            }
+            logger.info("Wrote compiled summary to " + outFile.getAbsolutePath());
+        } catch (IOException e) {
+            logger.error("Failed to write compiled summary file", e);
+        }
+
+        // summaries now contains Date -> contents of 'list' file for each valid folder
+        // process the summaries as needed
+    }
+
+    private Client getClient(CommandLine commandLine, ScrapedLogger store) {
+        if (commandLine.hasOption(itSeek)) {
+            return new SeekClientIt(store);
+        }
+
+        if (commandLine.hasOption(retailSeek)) {
+            return new SeekClientRetail(store);
+        }
+
+        return null;
     }
 
     private void readBatch(CommandLine commandLine, Client client, ScrapedLogger store) {
@@ -164,19 +275,32 @@ public class JobGet {
             processes.clear();
         }
 
-        if (!processes.isEmpty()) {
+        processes.forEach(e -> {
+            try {
+                e.join();
+            } catch (InterruptedException e1) {
+                logger.error(e1);
+            }
+        });
+
+        final List<CLWriterProcess> filteredProcesses = processes.stream()
+                .filter(e -> e.getDocId() != null)
+                .toList();
+
+        if (filteredProcesses.size() != processes.size()) {
+            int numProFailed = processes.size() - filteredProcesses.size();
+            logger.warn(numProFailed + " processes of " + processes.size() + " failed");
+        }
+
+        if (!filteredProcesses.isEmpty()) {
             SummaryWriter summary = new SummaryWriter(DEFAULT_SUMMARY_ROOT_FOLDER);
-            for (CLWriterProcess process : processes) {
-                try {
-                    process.join();
-                    if (process.getDocId() != null) {
-                        collect(summary, process.getJobInfo(), process.getPdfData(), store);
-                    }
-                } catch (InterruptedException ex) {
-                    logger.error(ex);
+            for (CLWriterProcess process : filteredProcesses) {
+                if (process.getDocId() != null) {
+                    collect(summary, process.getJobInfo(), process.getPdfData(), store);
                 }
             }
         }
+
     }
 
     private void collect(SummaryWriter summary, JobInfo jobInfo, ByteArrayOutputStream pdfData, ScrapedLogger store) {
@@ -195,20 +319,6 @@ public class JobGet {
         summary.appendFile(pdfData, fileName);
         store.logScrapeRecord(jobInfo.getScrapeRecord());
     }
-
-    // private void old(CommandLine commandLine) {
-    // try {
-    // JobGetter_SeekStore jg = new JobGetter_SeekStore();
-
-    // boolean storeOk = jg.checkStorageQuotaOk();
-    // jg.deleteOldFiles();
-    // if (!storeOk)
-    // return;
-    // jg.run();
-    // } catch (IOException | GeneralSecurityException e) {
-    // logger.error("Failed to login " + e);
-    // }
-    // }
 
     private void writeBatch(CommandLine commandLine, Client client) {
         logger.info("writeBatch start");
@@ -240,11 +350,15 @@ public class JobGet {
         Options options = new Options();
 
         OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
+        OptionGroup jobTypeGroup = new OptionGroup().addOption(itSeek).addOption(retailSeek);
+        jobTypeGroup.isRequired();
+
         options
                 .addOptionGroup(batchOperations)
+                .addOptionGroup(jobTypeGroup)
+                .addOption(compileSummarys)
                 .addOption(includeIfContains)
-                .addOption(excludeIfContains)
-                .addOption(itSeek);
+                .addOption(excludeIfContains);
 
         CommandLineParser parser = new DefaultParser();
 

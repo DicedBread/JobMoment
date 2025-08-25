@@ -31,7 +31,8 @@ public class BatchSelectWriter {
             String id = jobInfo.getScrapeRecord().id();
             String url = jobInfo.getListingUrl().toString();
             String title = jobInfo.getJobTitle();
-            String line = "- [ ] [" + id + "](" + url + ") " + title + "\n";
+            String companyName = jobInfo.getCompanyName();
+            String line = "- [ ] [" + id + "](" + url + ") " + title + " | " + companyName + "\n";
             fileWriter.write(line);
         } catch (IOException e) {
             logger.error(e);

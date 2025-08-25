@@ -29,16 +29,18 @@ import diced.bread.model.JobInfo;
 import diced.bread.model.ScrapeRecord;
 import diced.bread.persist.ScrapedLogger;
 
-public class SeekClient implements Client {
+public class SeekClientIt implements Client {
     private final String COUNT_URL = "https://www.seek.co.nz/api/jobsearch/v5/count?where=All+Auckland&classification=6281&sortmode=ListedDate&workarrangement=2,1,3";
 
-    private static final Logger logger = LogManager.getLogger(SeekClient.class);
+    private final String PROVIDER_NAME = this.getClass().getName();
+
+    private static final Logger logger = LogManager.getLogger(SeekClientRetail.class);
     public static final int MAX_PAGE_VAL = 100;
 
     private List<JobFilter> filters = new ArrayList<>();
     ScrapedLogger scrapeStore;
 
-    public SeekClient(ScrapedLogger scrapedLogger) {
+    public SeekClientIt(ScrapedLogger scrapedLogger) {
         scrapeStore = scrapedLogger;
     }
 
@@ -84,7 +86,7 @@ public class SeekClient implements Client {
                         companyName,
                         positionTitle,
                         isSoftware,
-                        new ScrapeRecord(SeekClient.class.getName(), id, new Date()),
+                        new ScrapeRecord(PROVIDER_NAME, id, new Date()),
                         date
                     );
 
@@ -108,7 +110,7 @@ public class SeekClient implements Client {
      * @return true if job should be excluded from result otherwise false
      */
     private boolean filterOut(JobInfo jobInfo, String id) {
-        boolean alreadyMade = scrapeStore.existsFromId(SeekClient.class.getName(), id);
+        boolean alreadyMade = scrapeStore.existsFromId(PROVIDER_NAME, id);
         if (alreadyMade)
             return true;
 
