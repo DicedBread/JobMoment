@@ -3,9 +3,11 @@ package diced.bread.client;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,6 +18,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import diced.bread.client.JobFilter.JobFilter;
@@ -41,15 +46,21 @@ public class ProspleClient implements Client {
     @Override
     public Map<URI, JobInfo> getJobInfo() {
         int count = getJobCount();
-
+        count = 2;
         Map<String, Opportunity> rawData = queryListings(count);
 
         HashMap<URI, JobInfo> out = new HashMap<>();
 
         rawData.forEach((id, listing) -> {
-            String listingUrl = "https://www.seek.co.nz/job/" + id;
-            String companyName = listing.parentEmployer.title;
+            
+            String listingUrl = "https://nz.prosple.com" + listing.detailPageURL;
+            
             String positionTitle = listing.title;
+            // if(listing.parentEmployer == null){
+            //     logger.warn(positionTitle + " id= " + id + " has no parent employer");
+            //     return;
+            // }
+            String companyName = listing.parentEmployer.title;
             boolean isSoftware = true;
             // String subclass = listing.classifications.get(0).subclassification.id;
             Date date = listing.applicationsCloseDate;
@@ -80,8 +91,9 @@ public class ProspleClient implements Client {
 
     private Map<String, Opportunity> queryListings(int count) {
         Map<String, Opportunity> listings = new HashMap<>();
-
+        
         try {
+            String f = new URI(getLink(0, count)).toString();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(new URI(getLink(0, count)))
                     .header("Content-Type", "application/json")
@@ -92,10 +104,13 @@ public class ProspleClient implements Client {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
-                Gson gson = new Gson();
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                JsonElement je = JsonParser.parseString(response.body());
+                String prettyJsonString = gson.toJson(je);
+                
                 Root root = gson.fromJson(response.body(), Root.class);
-
-                for (Opportunity datum : root.data.opportunitiesSearch.opportunitiesSortData) {
+                
+                for (Opportunity datum : root.data.opportunitiesSearch.opportunities) {
                     listings.put(datum.id, datum);
                 }
 
@@ -125,11 +140,10 @@ public class ProspleClient implements Client {
 
             HttpClient client = HttpClient.newHttpClient();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
             if (response.statusCode() == 200) {
                 Gson gson = new Gson();
                 Root root = gson.fromJson(response.body(), Root.class);
-                return root.data.opportunitiesSearch.totalCount;
+                return root.data.opportunitiesSearch.resultCount;
             } else {
                 logger.error("Failed to fetch job count. Status code: " + response.statusCode());
             }
@@ -140,9 +154,9 @@ public class ProspleClient implements Client {
     }
 
     private String getLink(int offset, int limit) {
-        String url = String.format(
+        String url = "https://prosple-gw.global.ssl.fastly.net/internal?operationName=OpportunitiesSearchWithoutStudyFieldFacets&variables=";
+        String payload = String.format(
                 """
-                        https://prosple-gw.global.ssl.fastly.net/internal?operationName=OpportunitiesSearchWithoutStudyFieldFacets&variables=
                         {
                             "parameters": {
                                 "gid": "2",
@@ -169,15 +183,21 @@ public class ProspleClient implements Client {
                                 ],
                                 "studyFieldsFilter": "506"
                             }
-                        }&extensions={
+                        }
+                    """,
+                offset, limit).replaceAll("\\s+", "");
+
+                String exte = """
+                        {
                             "persistedQuery": {
                                 "version": 1,
                                 "sha256Hash": "ce165d376efa75d024a360439eab240552b2072af08f0e1bda85cd1ba2ad5372"
                             }
                         }
-                        """,
-                offset, limit);
-        return url;
+                        """.replaceAll("\\s+", "");
+            String formatedPayload = URLEncoder.encode(payload, StandardCharsets.UTF_8);
+            String formaterExt = URLEncoder.encode(exte, StandardCharsets.UTF_8);
+        return url + formatedPayload + "&extensions=" + formaterExt;
     }
 
     /***

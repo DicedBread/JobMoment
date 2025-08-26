@@ -6,7 +6,7 @@ import java.util.Date;
 public class Opportunity{
     public String id;
     public String groupContentID;
-    public Object url;
+    // public Object url;
     public String title;
     public String applyByUrl;
     public boolean expired;
