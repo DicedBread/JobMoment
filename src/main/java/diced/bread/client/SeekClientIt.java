@@ -38,7 +38,7 @@ public class SeekClientIt implements Client {
     public static final int MAX_PAGE_VAL = 100;
 
     private List<JobFilter> filters = new ArrayList<>();
-    ScrapedLogger scrapeStore;
+    private ScrapedLogger scrapeStore;
 
     public SeekClientIt(ScrapedLogger scrapedLogger) {
         scrapeStore = scrapedLogger;
