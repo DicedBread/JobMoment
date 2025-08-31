@@ -111,6 +111,12 @@ public class JobGet {
             .required(false)
             .build();
 
+    private static final Option append = Option.builder("ap")
+            .longOpt("append")
+            .desc("append to existing batch file instead of overwrite")
+            .required(false)
+            .build();
+
     public void run(CommandLine commandLine) {
         List<JobFilter> filters = buildTitleFilters(commandLine);
         if (filters == null)
@@ -338,9 +344,9 @@ public class JobGet {
         if (file == null) {
             file = DEFAULT_BATCH_SELECT_FILE;
         }
-
+        boolean shouldAppend = commandLine.hasOption(append);
         Map<URI, JobInfo> listings = client.getJobInfo();
-        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
+        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file, shouldAppend);
         logger.info("writing " + listings.size() + " listings to batch");
         ArrayList<JobInfo> list = new ArrayList<>(listings.values());
         list.sort((b, a) -> {
@@ -368,6 +374,7 @@ public class JobGet {
         options
                 .addOptionGroup(batchOperations)
                 .addOptionGroup(jobTypeGroup)
+                .addOption(append)
                 .addOption(compileSummarys)
                 .addOption(includeIfContains)
                 .addOption(excludeIfContains);

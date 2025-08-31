@@ -18,16 +18,17 @@ public class BatchSelectWriter {
     private static final Logger logger = LogManager.getLogger(BatchSelectWriter.class);
     private static final Pattern pattern = Pattern.compile("^\\- \\[( |x)\\] \\[(.+?)\\]\\((.+?)\\) (.+)$");
     
-
     File file;
+    boolean append = false;
 
-    public BatchSelectWriter(String fileName) {
+    public BatchSelectWriter(String fileName, boolean append) {
         this.file = new File(fileName);
+        this.append = append;
     }
 
     // - [x] [id](link) title
     public void appendJob(JobInfo jobInfo) {
-        try (FileWriter fileWriter = new FileWriter(file, true)) {
+        try (FileWriter fileWriter = new FileWriter(file, append)) {
             String id = jobInfo.getScrapeRecord().id();
             String url = jobInfo.getListingUrl().toString();
             String title = jobInfo.getJobTitle();
