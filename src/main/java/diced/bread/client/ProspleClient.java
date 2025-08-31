@@ -46,7 +46,6 @@ public class ProspleClient implements Client {
     @Override
     public Map<URI, JobInfo> getJobInfo() {
         int count = getJobCount();
-        count = 2;
         Map<String, Opportunity> rawData = queryListings(count);
 
         HashMap<URI, JobInfo> out = new HashMap<>();

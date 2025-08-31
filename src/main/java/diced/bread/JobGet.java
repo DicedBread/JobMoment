@@ -37,7 +37,7 @@ import diced.bread.client.JobFilter.TitleContainsFilter;
 import diced.bread.client.JobFilter.TitleDoesNotContainFilter;
 import diced.bread.client.ProspleClient;
 import diced.bread.client.SeekClientIt;
-import diced.bread.client.SeekClientRetail;
+import diced.bread.client.SeekClientPartTime;
 import diced.bread.google.DocContainer;
 import diced.bread.google.DriveContainer;
 import diced.bread.google.GoogleOAuth;
@@ -61,9 +61,9 @@ public class JobGet {
             .desc("run seek client for it positions")
             .build();
 
-    private static final Option retailSeek = Option.builder("re")
-            .longOpt("seekRetail")
-            .desc("run seek client for retail positions")
+    private static final Option partTimeSeek = Option.builder("pt")
+            .longOpt("seekPartTime")
+            .desc("run seek client for part time positions")
             .build();
 
     private static final Option prosple = Option.builder("pro")
@@ -127,10 +127,10 @@ public class JobGet {
 
         if (!commandLine.hasOption(writeBatch) && !commandLine.hasOption(readBatch)) {
             filters.forEach(e -> client.addFilter(e));
-            if (!commandLine.hasOption(retailSeek)) {
+            if (!commandLine.hasOption(partTimeSeek)) {
                 runCoverLetterQuery(client, store);
             } else {
-                logger.warn("no cl writer for retail");
+                logger.warn("no cl writer for part time");
             }
         }
 
@@ -226,8 +226,8 @@ public class JobGet {
             return new SeekClientIt(store);
         }
 
-        if (commandLine.hasOption(retailSeek)) {
-            return new SeekClientRetail(store);
+        if (commandLine.hasOption(partTimeSeek)) {
+            return new SeekClientPartTime(store);
         }
 
         if(commandLine.hasOption(prosple)){
@@ -362,7 +362,7 @@ public class JobGet {
         Options options = new Options();
 
         OptionGroup batchOperations = new OptionGroup().addOption(writeBatch).addOption(readBatch);
-        OptionGroup jobTypeGroup = new OptionGroup().addOption(itSeek).addOption(retailSeek).addOption(prosple);
+        OptionGroup jobTypeGroup = new OptionGroup().addOption(itSeek).addOption(partTimeSeek).addOption(prosple);
         jobTypeGroup.isRequired();
 
         options

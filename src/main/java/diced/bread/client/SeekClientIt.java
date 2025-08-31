@@ -34,7 +34,7 @@ public class SeekClientIt implements Client {
 
     private final String PROVIDER_NAME = this.getClass().getName();
 
-    private static final Logger logger = LogManager.getLogger(SeekClientRetail.class);
+    private static final Logger logger = LogManager.getLogger(SeekClientPartTime.class);
     public static final int MAX_PAGE_VAL = 100;
 
     private List<JobFilter> filters = new ArrayList<>();

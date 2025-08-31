@@ -29,26 +29,26 @@ import diced.bread.model.JobInfo;
 import diced.bread.model.ScrapeRecord;
 import diced.bread.persist.ScrapedLogger;
 
-public class SeekClientRetail implements Client {
-    private final String COUNT_URL = "https://www.seek.co.nz/api/jobsearch/v5/count?siteKey=NZ-Main&where=Northcote+Auckland&page=1&classification=6043&distance=15&pageSize=22&sortmode=ListedDate&workarrangement=2,1,3";
+public class SeekClientPartTime implements Client {
+    private final String COUNT_URL = "https://www.seek.co.nz/api/jobsearch/v5/count?siteKey=NZ-Main&where=Northcote+Auckland&page=1&distance=15&pageSize=22&sortmode=ListedDate&workarrangement=2,1,3";
 
     private final String PROVIDER_NAME = this.getClass().getName();
 
 
-    private static final Logger logger = LogManager.getLogger(SeekClientRetail.class);
+    private static final Logger logger = LogManager.getLogger(SeekClientPartTime.class);
     public static final int MAX_PAGE_VAL = 100;
 
     private List<JobFilter> filters = new ArrayList<>();
     ScrapedLogger scrapeStore;
 
-    public SeekClientRetail(ScrapedLogger scrapedLogger) {
+    public SeekClientPartTime(ScrapedLogger scrapedLogger) {
         scrapeStore = scrapedLogger;
     }
 
 
     // https://www.seek.co.nz/api/jobsearch/v5/search?siteKey=NZ-Main&where=Northcote+Auckland&page=1&classification=6043&distance=15&pageSize=22&sortmode=ListedDate&workarrangement=2,1,3
     public String getLink(int page, int pageSize) {
-        String url = "https://www.seek.co.nz/api/jobsearch/v5/search?siteKey=NZ-Main&where=Northcote+Auckland&page=" + page + "&classification=6043&distance=15&pageSize="+pageSize+"&sortmode=ListedDate&workarrangement=2,1,3";
+        String url = "https://www.seek.co.nz/api/jobsearch/v5/search?siteKey=NZ-Main&where=Northcote+Auckland&page=" + page + "&distance=15&pageSize="+pageSize+"&sortmode=ListedDate&workarrangement=2,1,3";
         return url;
     }
 
