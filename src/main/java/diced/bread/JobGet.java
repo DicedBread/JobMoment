@@ -345,8 +345,21 @@ public class JobGet {
             file = DEFAULT_BATCH_SELECT_FILE;
         }
         boolean shouldAppend = commandLine.hasOption(append);
+        
+        // Clear the file if not appending
+        if (!shouldAppend) {
+            try (FileWriter writer = new FileWriter(file, false)) {
+                writer.write(""); // Clear the file
+                logger.info("Cleared existing batch file: " + file);
+                
+            } catch (IOException e) {
+                logger.error("Failed to clear batch file: " + file, e);
+                return;
+            }
+        }
+
         Map<URI, JobInfo> listings = client.getJobInfo();
-        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file, shouldAppend);
+        BatchSelectWriter batchSelectWriter = new BatchSelectWriter(file);
         logger.info("writing " + listings.size() + " listings to batch");
         ArrayList<JobInfo> list = new ArrayList<>(listings.values());
         list.sort((b, a) -> {

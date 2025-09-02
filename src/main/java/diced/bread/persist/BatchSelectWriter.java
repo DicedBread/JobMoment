@@ -19,16 +19,14 @@ public class BatchSelectWriter {
     private static final Pattern pattern = Pattern.compile("^\\- \\[( |x)\\] \\[(.+?)\\]\\((.+?)\\) (.+)$");
     
     File file;
-    boolean append = false;
 
-    public BatchSelectWriter(String fileName, boolean append) {
+    public BatchSelectWriter(String fileName) {
         this.file = new File(fileName);
-        this.append = append;
     }
 
     // - [x] [id](link) title
     public void appendJob(JobInfo jobInfo) {
-        try (FileWriter fileWriter = new FileWriter(file, append)) {
+        try (FileWriter fileWriter = new FileWriter(file, true)) {
             String id = jobInfo.getScrapeRecord().id();
             String url = jobInfo.getListingUrl().toString();
             String title = jobInfo.getJobTitle();
