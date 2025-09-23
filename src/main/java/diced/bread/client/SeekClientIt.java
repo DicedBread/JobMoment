@@ -34,7 +34,7 @@ public class SeekClientIt implements Client {
 
     private final String PROVIDER_NAME = this.getClass().getName();
 
-    private static final Logger logger = LogManager.getLogger(SeekClientPartTime.class);
+    private static final Logger logger = LogManager.getLogger(SeekClientIt.class);
     public static final int MAX_PAGE_VAL = 100;
 
     private List<JobFilter> filters = new ArrayList<>();
@@ -116,13 +116,10 @@ public class SeekClientIt implements Client {
 
         for (JobFilter f : filters) {
             boolean filterEval = f.shouldExclude(jobInfo);
-            logger.debug("val: " + filterEval + " " + jobInfo.getJobTitle());
             if (filterEval) {
-                logger.debug("excluded " + jobInfo.getJobTitle());
                 return true;
             }
         }
-        logger.debug("included " + jobInfo.getJobTitle());
 
         return false;
     }

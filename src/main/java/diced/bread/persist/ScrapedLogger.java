@@ -87,7 +87,6 @@ public class ScrapedLogger {
         getSavedIds();
         if(!searchCache.containsKey(prov)) return false;
         boolean v = searchCache.get(prov).contains(id);
-        logger.debug("does id: " +  id + " exist " +  v);
         return v;
     }
 

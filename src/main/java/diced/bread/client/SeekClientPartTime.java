@@ -117,13 +117,10 @@ public class SeekClientPartTime implements Client {
 
         for (JobFilter f : filters) {
             boolean filterEval = f.shouldExclude(jobInfo);
-            logger.debug("val: " + filterEval + " " + jobInfo.getJobTitle());
             if (filterEval) {
-                logger.debug("excluded " + jobInfo.getJobTitle());
                 return true;
             }
         }
-        logger.debug("included " + jobInfo.getJobTitle());
 
         return false;
     }
